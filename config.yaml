@@ -1,0 +1,20 @@
+save_file_name: "2D_omega"
+save_file_extension: ".svg"
+is_multi_files: true
+based_on_guiding_center: false
+target_folder_multi_files: "./csv/"
+plots_folder: "plots"
+extremum_of: "drho"
+calculate_integral: true
+calculate_traditional_magneticMoment: true
+simulation_parameters:
+  eps: 0.0177
+  epsphi: 0.0
+  kappa: 1.0
+  deltas: 1.0
+  beta: 90
+  alpha: 30
+  theta: 30
+  time: 100
+simulation_time: 100
+method: "Feagin14 Method"
