@@ -1,3 +1,21 @@
+# Ignore image files
+*.png
+*.jpg
+*.svg
+
+# Ignore CSV files
+*.csv
+
+# Ignore environment folders
+env/
+venv/
+
+# Initial Condition variables
+initial_conditions.txt
+
+# misc
+*.pyc
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
