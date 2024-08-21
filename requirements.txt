@@ -2,3 +2,5 @@ pandas
 matplotlib
 findpeaks
 plotly
+tabulate
+rich
