@@ -126,3 +126,54 @@ The `config.yaml` file contains settings for file paths, output formats, and sim
 - **based_on_guiding_center**: If `true`, uses the guiding center approximation.
 - **simulation_parameters**: Control physical properties like `eps`, `epsphi`, `kappa`, `beta`, `alpha`, `theta`, and simulation time.
 - **method**: Numerical method for the simulation (e.g., `"Feagin14 Method"`).
+
+## Additional info
+### Peak Finder Script (`peakfinder.py`)
+
+The `peakfinder.py` script is designed to detect peaks and analyze specific variables from simulation datasets. It allows users to visualize critical points in the data and calculate additional physical quantities like adiabatic invariants and magnetic moments. The script processes data stored in CSV files and generates plots based on the detected peaks.
+
+#### Features:
+- **Peak Detection**: Automatically identifies local maxima (peaks) in a chosen variable using the `findpeaks` library and SciPy.
+- **Multi-file Support**: The script can process multiple CSV files at once if enabled.
+- **Customizable Plotting**: Allows customization of plot titles, axis labels, and peak markers.
+- **Adiabatic Calculations**: Calculates and visualizes adiabatic invariants if configured.
+- **Magnetic Moment**: Computes and plots the traditional magnetic moment.
+
+#### Configuration:
+The script reads parameters from the `config.yaml` file to control its behavior. Key configuration options include:
+
+- **save_file_name**: The base name for output plot files.
+- **save_file_extension**: The file extension for output plots (e.g., `.svg`, `.png`).
+- **is_multi_files**: Set this to `true` to process multiple CSV files, or `false` for a single file.
+- **target_folder_multi_files**: Directory where multiple CSV files are stored for processing.
+- **plots_folder**: Directory where generated plots will be saved.
+- **extremum_of**: The variable to analyze for peak detection (e.g., `"drho"` for density changes).
+- **based_on_guiding_center**: If set to `true`, the guiding center approximation is used for calculations.
+- **calculate_integral**: Set to `true` to calculate and plot adiabatic invariants.
+- **calculate_traditional_magneticMoment**: Set to `true` to compute and plot the magnetic moment.
+
+#### Usage:
+To run the script, ensure the necessary Python libraries are installed and configured according to `requirements.txt`. The script processes data and generates plots as follows:
+
+1. **Single File Processing**:
+   If `is_multi_files` is set to `false`, the script will process a single CSV file. The file path can be selected interactively or hardcoded.
+
+    ```bash
+    python peakfinder.py
+    ```
+
+2. **Multiple File Processing**:
+   If `is_multi_files` is set to `true`, the script will process all CSV files in the directory specified by `target_folder_multi_files`.
+
+    ```bash
+    python peakfinder.py
+    ```
+
+#### Example Workflow:
+1. **Peak Detection**: The script detects peaks in the variable specified by `extremum_of` (e.g., `"drho"`) and visualizes the data with peak markers.
+2. **Adiabatic Invariant Calculation**: If enabled, the script computes the adiabatic invariant \( J = \oint v_x \, dx \) and plots it as a function of time or other parameters.
+3. **Magnetic Moment Calculation**: If `calculate_traditional_magneticMoment` is enabled, the traditional magnetic moment is computed and visualized.
+
+#### Output:
+- The results are saved as plot files in the format specified by `save_file_extension`.
+- The plots include annotations for detected peaks, and additional calculations (e.g., adiabatic invariant or magnetic moment) are also visualized.
