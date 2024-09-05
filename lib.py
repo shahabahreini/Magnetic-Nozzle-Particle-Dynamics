@@ -3,6 +3,7 @@ import re
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib import rcParams
 
 
 def search_for_export_csv():
@@ -43,7 +44,8 @@ def extract_parameters_by_file_name(fname):
 
     for match in re.finditer(pattern, fname):
         key = match.group(1)
-        value = float(match.group(2))  # Converts string directly to float, handling scientific notation
+        # Converts string directly to float, handling scientific notation
+        value = float(match.group(2))
         numbers[key] = value
 
     return numbers
@@ -73,6 +75,36 @@ def read_exported_csv_simulation(path_, fname_):
             "value4": "R",
             "value5": "phi",
             "value6": "Z",
+        },
+        inplace=True,
+    )
+    return df
+
+
+def read_exported_csv_simulatio_3D(path_, fname_):
+    """Gets the folder path and desired file name and load the data into Pandas DataFrame"""
+
+    data = pd.read_csv(path_ + fname_)
+    df = pd.DataFrame(
+        data,
+        columns=[
+            "timestamp",
+            "drho",
+            "dphi",
+            "dz",
+            "rho",
+            "phi",
+            "z",
+        ],
+    )
+    df.rename(
+        columns={
+            "drho": "dR",
+            "dphi": "dphi",
+            "dz": "dZ",
+            "rho": "R",
+            "phi": "phi",
+            "z": "Z",
         },
         inplace=True,
     )
@@ -195,7 +227,7 @@ def epsilon_calculate(B_x, B_z, extremum_idx, time, label=None):
     start_idx = extremum_idx[0]
     end_idx = extremum_idx[1]
     omega_g = B_magnitude[start_idx]
-    #omega_g = ((1-B_magnitude[end_idx]/B_magnitude[start_idx])**2)*B_magnitude[start_idx]# Assuming omega_g is proportional to B
+    # omega_g = ((1-B_magnitude[end_idx]/B_magnitude[start_idx])**2)*B_magnitude[start_idx]# Assuming omega_g is proportional to B
     # Time duration of one gyration cycle
     tau_B = time[end_idx] - time[start_idx]
     epsilon_i = omega_g * tau_B
@@ -204,7 +236,8 @@ def epsilon_calculate(B_x, B_z, extremum_idx, time, label=None):
     for i in range(len(extremum_idx) - 1):
         start_idx = extremum_idx[i]
         end_idx = extremum_idx[i + 1]
-        omega_g = B_magnitude[start_idx]  # Assuming omega_g is proportional to B
+        # Assuming omega_g is proportional to B
+        omega_g = B_magnitude[start_idx]
         # omega_g = (B_magnitude[start_idx]**2 / (B_magnitude[end_idx])
         # Time duration of one gyration cycle
         tau_B = time[end_idx] - time[start_idx]
@@ -253,7 +286,6 @@ def calculate_dynamic_epsilon(data, q=1, m=1, label=None):
     return data[['timestamp', 'epsilon']]
 
 
-
 def epsilon_calculate_allPoints(B_x, B_z, time, label=None):
     # Calculate the magnitude of the magnetic field vector at each point
     """
@@ -289,7 +321,7 @@ def epsilon_calculate_allPoints(B_x, B_z, time, label=None):
     plt.ylabel(r'$\epsilon$')
     plt.title(r'Dimensionless Parameter $\epsilon$ per Cycles')
     plt.legend()
-    
+
 
 def calculate_magnetic_field(rho, z):
     """
@@ -299,6 +331,7 @@ def calculate_magnetic_field(rho, z):
     B_z = z / (rho**2 + z**2)**(3/2)
     B_phi = 0
     return B_r, B_phi, B_z
+
 
 def calculate_guiding_center(B, v, rho, z):
     """
@@ -311,52 +344,100 @@ def calculate_guiding_center(B, v, rho, z):
     r_gc_z = z - R_gc[2]
     return r_gc_rho, r_gc_z
 
-def calculate_ad_mio(df, label=None, use_guiding_center=True):
+
+def calculate_ad_mio(df, label=None, use_guiding_center=True, auto_scale=True, y_margin=1e-40, param_dict=None):
     """
-    The calculate_ad_mio function calculates the adiabatic invariant mu (magnetic moment) 
+    The calculate_ad_mio function calculates the adiabatic invariant mu (magnetic moment)
     for a charged particle in a magnetic field at each point in the DataFrame.
     """
     # Constants
     m = 1  # Mass of the particle (adjust as needed)
-    
+
+    # --------------------------- figures configuration -------------------------- #
+    # Set the font to a more professional option (if available)
+    rcParams['font.family'] = 'sans-serif'
+    rcParams['font.sans-serif'] = ['Arial', 'Helvetica', 'DejaVu Sans']
+
+    # Increase the default font size
+    rcParams['font.size'] = 10
+    rcParams['axes.titlesize'] = 12
+    rcParams['axes.labelsize'] = 12
+    # Set a style for a more professional look
+    # plt.style.use('whitegrid')
+    # Set labels with enhanced styling
+    # ---------------------------------------------------------------------------- #
+
     df['v_rho'] = df['drho']
     df['v_phi'] = df['rho'] * df['dphi']
     df['v_z'] = df['dz']
-    
+
     mu_values = []
-    
+
     for i, row in df.iterrows():
         # Compute magnetic field components at the particle's position
         B_r, B_phi, B_z = calculate_magnetic_field(row['rho'], row['z'])
         B = np.array([B_r, B_phi, B_z])
         v = np.array([row['v_rho'], row['v_phi'], row['v_z']])
-        
+
         if use_guiding_center:
             # Compute magnetic field components at the guiding center
-            r_gc_rho, r_gc_z = calculate_guiding_center(B, v, row['rho'], row['z'])
+            r_gc_rho, r_gc_z = calculate_guiding_center(
+                B, v, row['rho'], row['z'])
             B_r, B_phi, B_z = calculate_magnetic_field(r_gc_rho, r_gc_z)
             B = np.array([B_r, B_phi, B_z])
-        
+
         # Calculate the magnitude of the magnetic field
         B_magnitude = np.linalg.norm(B)
-        
+
         # Compute perpendicular velocity component
         B_unit = B / B_magnitude
         v_perp_vector = v - np.dot(v, B_unit) * B_unit
         v_perp_magnitude = np.linalg.norm(v_perp_vector)
-        
+
         # Compute mu for each point
         mu = m * v_perp_magnitude**2 / (2 * B_magnitude)
         mu_values.append(mu)
 
     # Plot mu versus time points
     plt.plot(df['timestamp'], mu_values, label=label)
-    plt.xlabel('Time')
-    plt.ylabel(r'$\mu$')
-    if use_guiding_center:
-        plt.title(r'Adiabatic Invariant $\mu = \frac{m v_{\perp}^2}{2 B}$ per Time Points'+'\nCalculated Based on Magnetic Field at Guiding Center')
+
+    # -------------------------- Improve y-axis scaling -------------------------- #
+    if auto_scale:
+        plt.ylim(auto=True)  # Automatically adjust y-axis limits based on data
+        # Alternatively, you can set manual limits:
     else:
-        plt.title(r'Adiabatic Invariant $\mu = \frac{m v_{\perp}^2}{2 B}$ per Time Points'+'\nCalculated Based on Magnetic Field at Particle Position')
+        plt.ylim(min(mu_values) - y_margin, max(mu_values) +
+                 y_margin)  # Add a margin if needed
+    # ------------------------------------------------------------------------------- #
+
+    print('Average mu:', np.mean(mu_values))
+
+    # Create a more eye-catching title
+    if use_guiding_center:
+        title = r'Adiabatic Invariant $\mu = \frac{m v_{\perp}^2}{2 B}$ Evolution'
+        subtitle = 'Based on Magnetic Field at Guiding Center'
+    else:
+        title = r'Adiabatic Invariant $\mu = \frac{m v_{\perp}^2}{2 B}$ Evolution'
+        subtitle = 'Based on Magnetic Field at Particle Position'
+
+    if param_dict['epsphi'] != 0:
+        subtitle += f", $\\epsilon_{{\\phi}} = {param_dict['epsphi']}$"
+    else:
+        subtitle += f", no Electric Field"
+
+    plt.suptitle(title, fontsize=12, fontweight='bold', y=0.98)
+    plt.title(subtitle, fontsize=10, fontweight='normal',
+              style='italic')
+
+    # Add a light gray box around the plot for emphasis
+    plt.gca().patch.set_facecolor('#f0f0f0')
+    plt.gcf().patch.set_facecolor('white')
+
+    plt.grid(True, linestyle='--', alpha=0.3)
+    plt.tight_layout()
+
+    # Optionally, add a colorbar if your plot uses colors
+    # plt.colorbar(label='Value Range')
     plt.legend()
-    
-    return mu_values
+
+    return df['timestamp'], mu_values
