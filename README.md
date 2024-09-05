@@ -4,17 +4,33 @@
 This project involves the numerical simulation of particle dynamics and properties in electromagnetic fields, using Julia for the core numerical computations and Python for visualization. The simulation tracks particle motion under specific initial conditions and renders both 2D and 3D plots to visualize the system's behavior over time.
 
 ## Table of Contents
-- [Project Overview](#project-overview)
-- [Installation](#installation)
-- [Usage](#usage)
-  - [Initial Conditions](#initial-conditions)
-  - [Running the Simulations](#running-the-simulations)
-  - [Visualization](#visualization)
-- [Plotting Options](#plotting-options)
-  - [2D Plotting Options](#2d-plotting-options)
-  - [3D Plotting Options](#3d-plotting-options)
-- [Configuration](#configuration)
-- [Contributors](#contributors)
+
+<!-- TOC -->
+
+- [1. Project Overview](#1-project-overview)
+- [2. Installation](#2-installation)
+  - [2.1. Prerequisites](#21-prerequisites)
+  - [2.2. Package Installation](#22-package-installation)
+- [3. Usage](#3-usage)
+  - [3.1. Initial Conditions](#31-initial-conditions)
+  - [3.2. Running the Simulations](#32-running-the-simulations)
+    - [3.2.1. Julia Simulation](#321-julia-simulation)
+    - [3.2.2. Python Data Processing and Visualization](#322-python-data-processing-and-visualization)
+  - [3.3. Visualization](#33-visualization)
+- [4. Plotting Options](#4-plotting-options)
+  - [4.1. 2D Plotting Options](#41-2d-plotting-options)
+  - [4.2. 3D Plotting Options](#42-3d-plotting-options)
+- [5. Configuration](#5-configuration)
+- [6. Additional Features](#6-additional-features)
+  - [6.1. Peak Finder Script](#61-peak-finder-script)
+    - [6.1.1. Features](#611-features)
+    - [6.1.2. Configuration](#612-configuration)
+    - [6.1.3. Usage](#613-usage)
+    - [6.1.4. Example Workflow](#614-example-workflow)
+    - [6.1.5. Output](#615-output)
+- [7. Contributors](#7-contributors)
+
+<!-- /TOC -->
 
 ## Project Overview
 
