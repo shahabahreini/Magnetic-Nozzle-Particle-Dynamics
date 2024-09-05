@@ -1,12 +1,13 @@
 save_file_name: "2D_omega"
 save_file_extension: ".svg"
 is_multi_files: true
-based_on_guiding_center: false
+based_on_guiding_center: true
 target_folder_multi_files: "./csv/"
 plots_folder: "plots"
 extremum_of: "drho"
 calculate_integral: true
 calculate_traditional_magneticMoment: true
+show_extremums_peaks: false
 simulation_parameters:
   eps: 0.0177
   epsphi: 0.0

@@ -48,6 +48,7 @@ plots_folder = config.plots_folder
 parameter_dict = config.parameter_dict
 fpath = config.target_folder
 extremum_of = config.extremum_of
+show_extremums_peaks = config.show_extremums_peaks
 # ------------------------------------ --- ----------------------------------- #
 
 
@@ -118,7 +119,8 @@ def plotter(path_, fname_):
         df = lib.read_exported_csv_2Dsimulation(path_, fname)
         varibale_to_find_peaks_with = df[config.extremum_of]
 
-        peak_idxx = peakfinder_(varibale_to_find_peaks_with)
+        peak_idxx = peakfinder_(
+            varibale_to_find_peaks_with, show_extremums_peaks)
 
         y_axis_data = lib.adiabtic_calculator(df["drho"], df["rho"], peak_idxx)
         x_axis_data = [df["timestamp"].tolist()[i] for i in peak_idxx[1:]]
@@ -200,7 +202,7 @@ def perform_adiabatic_calculations(chosen_csv, auto_scale=True, y_margin=1e-17):
 
     # Prepare and sort file data based on 'eps' values from filenames
     file_data = [
-        (extract_parameters_by_file_name(file)["eps"], f'ε={
+        (extract_parameters_by_file_name(file)["eps"], f'ε = {
          extract_parameters_by_file_name(file)["eps"]}', os.path.join(csv_directory, file))
         for file in os.listdir(csv_directory) if file.endswith('.csv')
     ]

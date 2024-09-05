@@ -32,21 +32,21 @@ METHOD = "Feagin14 Method"
 
 def kinetic_energy_calculator_cylindricalCoordinates(df_):
     vel_R, vel_phi, vel_Z = df_["dR"], df_["R"] * df_["dphi"], df_["dZ"]
-    return vel_R**2 + vel_phi**2 + vel_Z**2
+    return vel_R ** 2 + vel_phi ** 2 + vel_Z ** 2
 
 
 def kinetic_energy_cylindricalCoordinates_electricField(df_, kappa, delta_star, eps_phi):
     R, Z, Phi, vel_R, vel_phi, vel_Z = df_["R"], df_["Z"], df_[
         "phi"], df_["dR"], df_["R"] * df_["dphi"], df_["dZ"]
-    kinetic_energy = vel_R**2 + vel_phi**2 + vel_Z**2
-    potential_energy = kappa * (1 - delta_star**2 * (1 - Z**2 / (R**2 + Z**2))) * \
-        np.log(1 / (R**2 + Z**2)) + 0.5 * (1 - Z**2 / (R**2 + Z**2))
+    kinetic_energy = vel_R ** 2 + vel_phi ** 2 + vel_Z ** 2
+    potential_energy = kappa * (1 - delta_star ** 2 * (1 - Z ** 2 / (R ** 2 + Z ** 2))) * \
+                       np.log(1 / (R ** 2 + Z ** 2)) + 0.5 * (1 - Z ** 2 / (R ** 2 + Z ** 2))
     return kinetic_energy + 2 * eps_phi * potential_energy
 
 
 def angular_momentum_calculator_cylindricalCoordinates(df_):
     R, Z, vel_phi = df_["R"], df_["Z"], df_["R"] * df_["dphi"]
-    psi = Z / np.sqrt(R**2 + Z**2)
+    psi = Z / np.sqrt(R ** 2 + Z ** 2)
     return vel_phi * R - psi
 
 
@@ -80,7 +80,8 @@ def plotter(chosen_csv, save_filename, parameter_dict, plot_type):
         t_ = df["timestamp"].tolist()
 
         if plot_type == "energy":
-            Y = (kinetic_energy_cylindricalCoordinates_electricField(df, parameter_dict["kappa"], parameter_dict["deltas"], parameter_dict["epsphi"])
+            Y = (kinetic_energy_cylindricalCoordinates_electricField(df, parameter_dict["kappa"],
+                                                                     parameter_dict["deltas"], parameter_dict["epsphi"])
                  if electric_field_included else kinetic_energy_calculator_cylindricalCoordinates(df))
         elif plot_type == "momentum":
             Y = angular_momentum_calculator_cylindricalCoordinates(df)
@@ -128,7 +129,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Plot energy or momentum from simulation data.")
     parser.add_argument("plot_type", choices=[
-                        "energy", "momentum"], help="Type of plot to generate: 'energy' or 'momentum'.")
+        "energy", "momentum"], help="Type of plot to generate: 'energy' or 'momentum'.")
     args = parser.parse_args()
 
     chosen_csv = "multi_plot" if IS_MULTI_FILES else search_for_export_csv()

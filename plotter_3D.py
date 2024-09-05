@@ -16,7 +16,6 @@ from rich.prompt import Prompt
 from rich.progress import Progress
 from matplotlib import gridspec
 
-
 console = Console()
 
 # ---------------------------------- Config ---------------------------------- #
@@ -43,10 +42,13 @@ parameter_dict = {
 
 simulation_time = 100
 method = "Feagin14"
+
+
 # ------------------------------------ --- ----------------------------------- #
 
 def tangent_calculator(x_, y_):
     return y_ / x_
+
 
 def display_available_parameters(df):
     table = Table(title="Available Parameters for Plotting")
@@ -58,6 +60,7 @@ def display_available_parameters(df):
 
     console.print(table)
 
+
 def point_finder(x_i, y_i, x_f):
     b = 0
     m = tangent_calculator(x_i, y_i)
@@ -67,13 +70,15 @@ def point_finder(x_i, y_i, x_f):
     ys = [y_i, y_f]
     return xs, ys
 
+
 def cylindrical_to_cartesian(rho, phi, z):
     rho = rho.to_numpy()
     phi = phi.to_numpy()
     z = z.to_numpy()
-    x = rho*np.cos(phi)
-    y = rho*np.sin(phi)
+    x = rho * np.cos(phi)
+    y = rho * np.sin(phi)
     return x, y, z
+
 
 def Plotter(save_filename, x_param, y_param, plot_type='2d', coord_system='cartesian'):
     global parameter_dict
@@ -85,7 +90,7 @@ def Plotter(save_filename, x_param, y_param, plot_type='2d', coord_system='carte
     else:
         path_ = ""
         filelst = [save_filename]
-        
+
     if not filelst:
         console.print("[bold red]No CSV files found.[/bold red]")
         return
@@ -100,7 +105,7 @@ def Plotter(save_filename, x_param, y_param, plot_type='2d', coord_system='carte
     alpha = parameter_dict["alpha"]
     theta = parameter_dict["theta"]
     simulation_time = parameter_dict["time"]
-    
+
     if plot_type == '2d':
         fig, (ax, ax_params) = plt.subplots(1, 2, figsize=(15, 6), gridspec_kw={'width_ratios': [3, 1]})
     else:
@@ -108,10 +113,10 @@ def Plotter(save_filename, x_param, y_param, plot_type='2d', coord_system='carte
         gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
         ax = fig.add_subplot(gs[0], projection='3d')
         ax_params = fig.add_subplot(gs[1])
-    
+
     with Progress() as progress:
         task = progress.add_task("[cyan]Processing files...", total=len(filelst))
-        
+
         for fname in filelst:
             full_path = os.path.join(path_, fname)
             data = pd.read_csv(full_path)
@@ -140,14 +145,14 @@ def Plotter(save_filename, x_param, y_param, plot_type='2d', coord_system='carte
                     else:
                         rho, phi, z = df['rho'], df['phi'], df['z']
                         x, y, z = cylindrical_to_cartesian(rho, phi, z)
-                
+
                 points = ax.scatter(x, y, z, c=time, cmap=color_map, norm=norm, s=2)
                 ax.plot(x, y, z, alpha=0.3, label=fr"$\kappa = {kappa}$")
-                
+
                 # Add projections
                 ax.plot(x, y, min(z), 'k--', alpha=0.2)  # x-y projection
-                ax.plot(x, [min(y)]*len(x), z, 'k--', alpha=0.2)  # x-z projection
-                ax.plot([min(x)]*len(y), y, z, 'k--', alpha=0.2)  # y-z projection
+                ax.plot(x, [min(y)] * len(x), z, 'k--', alpha=0.2)  # x-z projection
+                ax.plot([min(x)] * len(y), y, z, 'k--', alpha=0.2)  # y-z projection
 
             progress.update(task, advance=1)
 
@@ -155,7 +160,7 @@ def Plotter(save_filename, x_param, y_param, plot_type='2d', coord_system='carte
     cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])
     cbar = plt.colorbar(points, cax=cbar_ax)
     cbar.set_label('Time', rotation=270, labelpad=15)
-    cbar.ax.tick_params(labelsize=8)# Adjust tick label size
+    cbar.ax.tick_params(labelsize=8)  # Adjust tick label size
 
     # Update x and y labels with Greek symbols and velocity representations
     greek_symbols = {
@@ -192,10 +197,10 @@ def Plotter(save_filename, x_param, y_param, plot_type='2d', coord_system='carte
         ax.grid(True, linestyle='--', alpha=0.5)
 
         # Set equal aspect ratio
-        max_range = np.array([x.max()-x.min(), y.max()-y.min(), z.max()-z.min()]).max() / 2.0
-        mid_x = (x.max()+x.min()) * 0.5
-        mid_y = (y.max()+y.min()) * 0.5
-        mid_z = (z.max()+z.min()) * 0.5
+        max_range = np.array([x.max() - x.min(), y.max() - y.min(), z.max() - z.min()]).max() / 2.0
+        mid_x = (x.max() + x.min()) * 0.5
+        mid_y = (y.max() + y.min()) * 0.5
+        mid_z = (z.max() + z.min()) * 0.5
         ax.set_xlim(mid_x - max_range, mid_x + max_range)
         ax.set_ylim(mid_y - max_range, mid_y + max_range)
         ax.set_zlim(mid_z - max_range, mid_z + max_range)
@@ -237,6 +242,7 @@ def Plotter(save_filename, x_param, y_param, plot_type='2d', coord_system='carte
     console.print(f"[green]Plot saved as:[/green] [bold]{path_to_save}[/bold]")
     plt.show()
 
+
 if __name__ == "__main__":
     console.print(Panel.fit("[bold cyan]Welcome to the Interactive Plotter[/bold cyan]"))
 
@@ -256,13 +262,13 @@ if __name__ == "__main__":
     if plot_type == '2d':
         console.print("\n[bold]Available parameters for plotting:[/bold]")
         display_available_parameters(df)
-        
+
         x_index = int(Prompt.ask("Enter the index number for x-axis parameter", default="1"))
         y_index = int(Prompt.ask("Enter the index number for y-axis parameter", default="2"))
-        
+
         x_param = df.columns[x_index - 1]
         y_param = df.columns[y_index - 1]
-        
+
         console.print(f"[green]Selected x-axis:[/green] [bold]{x_param}[/bold]")
         console.print(f"[green]Selected y-axis:[/green] [bold]{y_param}[/bold]")
         coord_system = None
@@ -271,4 +277,3 @@ if __name__ == "__main__":
         x_param = y_param = None  # These are not used for 3D plots
 
     Plotter(chosen_csv, x_param, y_param, plot_type, coord_system)
-

@@ -30,6 +30,8 @@ parameter_dict = {
 
 simulation_time = 100
 method = "Feagin14 Method"
+
+
 # ------------------------------------ --- ----------------------------------- #
 
 
@@ -75,12 +77,12 @@ def Plotter(save_filename):
         y_ = adiabtic_calculator(df)
 
         x_ = df["z"]
-        #y_ = df["omega_rho"]/df["omega_z"]
+        # y_ = df["omega_rho"]/df["omega_z"]
         y_ = df["rho"]
 
         if is_multi_files:
             parameter_dict = extract_parameters_by_file_name(fname)
-            linename = "approx " if "approx" in fname else "exact" 
+            linename = "approx " if "approx" in fname else "exact"
             plt.plot(x_, y_, label=linename + "→ " + r"$\theta$=" + str(parameter_dict["theta"]))
         else:
             plt.plot(x_, y_)
@@ -94,7 +96,7 @@ def Plotter(save_filename):
     plt.xlabel(r"$\tau$")
     plt.suptitle(r"$\widetilde{R}$ vs $\tau$", fontsize=12)
     plt.title(
-        #f"$\\theta_0 = {theta}^{{\circ}}$ , $\\alpha_0={alpha}^{{\circ}}$ , $\\beta_0 = {beta}^{{\circ}}$, $\\phi_0 = 0.0^{{\circ}}$, $\\kappa = {kappa}$, $\\delta_* = {deltas}$, $\\epsilon_ = {eps}$",
+        # f"$\\theta_0 = {theta}^{{\circ}}$ , $\\alpha_0={alpha}^{{\circ}}$ , $\\beta_0 = {beta}^{{\circ}}$, $\\phi_0 = 0.0^{{\circ}}$, $\\kappa = {kappa}$, $\\delta_* = {deltas}$, $\\epsilon_ = {eps}$",
         f"$\\theta_0 = {theta}^{{\circ}}$ , $\\alpha_0={alpha}^{{\circ}}$ , $\\beta_0 = {beta}^{{\circ}}$, $\\phi_0 = 0.0^{{\circ}}$, $\\delta_* = {deltas}$, $\\epsilon_\phi = {epsphi}$, $\\epsilon = {eps}$",
         loc="right",
         fontsize=8,
@@ -108,7 +110,7 @@ def Plotter(save_filename):
         color="grey",
         style="italic",
     )
-    
+
     if is_multi_files:
         plt.legend()
     plt.tight_layout()
@@ -123,7 +125,7 @@ def adiabtic_calculator(df):
     velocity = df[["drho", "dz"]]
     position = df[["rho", "z"]]
 
-    velocity_2 = velocity **2
+    velocity_2 = velocity ** 2
     print(velocity['drho'].shape)
 
     integrate = velocity['drho'] * position['z'] - velocity['dz'] * position['rho']
@@ -136,22 +138,18 @@ def adiabtic_calculator(df):
 
     adiabatic = np.cumsum(velocity.iloc[:, 0].values * np.append(delta_X[:, 0], 0))
 
-
-
     # Compute the integral of V.dX as a vector at each time step
     integral_VdX_vector = np.cumsum(np.sum(velocity[:-1] * delta_X, axis=1))
 
     print(adiabatic.shape)
 
     plt.plot(df['timestamp'], adiabatic)
-    #plt.plot(df['timestamp'], integrate)
-    #plt.plot( df['timestamp'], integrate_2)
+    # plt.plot(df['timestamp'], integrate)
+    # plt.plot( df['timestamp'], integrate_2)
 
     plt.show()
 
     return adiabatic
-
-
 
 
 if not is_multi_files:

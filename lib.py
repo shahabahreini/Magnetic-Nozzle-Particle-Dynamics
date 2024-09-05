@@ -16,7 +16,7 @@ def search_for_export_csv():
     # print the list of csv files
     print("CSV files in current directory:")
     for i, file in enumerate(csv_files):
-        print(f"{i+1}. {file}")
+        print(f"{i + 1}. {file}")
 
     # ask user to choose a file
     while True:
@@ -182,7 +182,7 @@ def adiabtic_calculator_fixed(v_x, x, extremum_idx, label=None):
 
 def magnetic_change_calculate(B_x, B_z, extremum_idx, label=None):
     # Calculate the magnitude of the magnetic field vector at each point
-    B_magnitude = np.sqrt(B_x**2 + B_z**2)
+    B_magnitude = np.sqrt(B_x ** 2 + B_z ** 2)
 
     # Compute the relative changes in the magnitude of the magnetic field
     relative_magnetic_changes = []
@@ -221,7 +221,7 @@ def epsilon_calculate(B_x, B_z, extremum_idx, time, label=None):
     :return: A list of epsilon values for each cycle
     :doc-author: Trelent
     """
-    B_magnitude = np.sqrt(B_x**2 + B_z**2)
+    B_magnitude = np.sqrt(B_x ** 2 + B_z ** 2)
 
     # Compute epsilon for each cycle
     start_idx = extremum_idx[0]
@@ -255,14 +255,13 @@ def epsilon_calculate(B_x, B_z, extremum_idx, time, label=None):
 
 
 def calculate_dynamic_epsilon(data, q=1, m=1, label=None):
-
     # Calculate velocity components
     data['v_rho'] = data['drho']
     data['v_phi'] = data['rho'] * data['dphi']
     data['v_z'] = data['dz']
 
     # Calculate the magnitude of the magnetic field
-    data['B'] = np.sqrt(data['Magnetic_rho']**2 + data['Magnetic_z']**2)
+    data['B'] = np.sqrt(data['Magnetic_rho'] ** 2 + data['Magnetic_z'] ** 2)
 
     # Calculate the gradient of the magnetic field using finite differences
     data['grad_B_rho'] = data['B'].diff() / data['rho'].diff()
@@ -272,10 +271,10 @@ def calculate_dynamic_epsilon(data, q=1, m=1, label=None):
 
     # Calculate the dot product of grad_B and velocity
     data['grad_B_dot_v'] = data['grad_B_rho'] * \
-        data['v_rho'] + data['grad_B_z'] * data['v_z']
+                           data['v_rho'] + data['grad_B_z'] * data['v_z']
 
     # Calculate epsilon
-    data['epsilon'] = (q / m) * (data['B']**2) / data['grad_B_dot_v']
+    data['epsilon'] = (q / m) * (data['B'] ** 2) / data['grad_B_dot_v']
 
     plt.plot(range(len(data['epsilon'])), data['epsilon'], label=label)
     plt.xlabel('Cycles')
@@ -299,7 +298,7 @@ def epsilon_calculate_allPoints(B_x, B_z, time, label=None):
     :return: A list of epsilon values for each cycle
     :doc-author: Trelent
     """
-    B_magnitude = np.sqrt(B_x**2 + B_z**2)
+    B_magnitude = np.sqrt(B_x ** 2 + B_z ** 2)
 
     # Compute epsilon for each cycle
     omega_g = B_magnitude[0]  # Assuming omega_g is proportional to B
@@ -309,9 +308,9 @@ def epsilon_calculate_allPoints(B_x, B_z, time, label=None):
 
     epsilon_values = []
     for i in range(len(time) - 1):
-        omega_g = (B_magnitude[i]**2 / B_magnitude[i+1])
+        omega_g = (B_magnitude[i] ** 2 / B_magnitude[i + 1])
         # Time duration of one gyration cycle
-        tau_B = time[i+1] - time[i]
+        tau_B = time[i + 1] - time[i]
         epsilon = omega_g * tau_B / epsilon_i
         epsilon_values.append(epsilon)
 
@@ -327,8 +326,8 @@ def calculate_magnetic_field(rho, z):
     """
     Calculate magnetic field components in cylindrical coordinates.
     """
-    B_r = rho / (rho**2 + z**2)**(3/2)
-    B_z = z / (rho**2 + z**2)**(3/2)
+    B_r = rho / (rho ** 2 + z ** 2) ** (3 / 2)
+    B_z = z / (rho ** 2 + z ** 2) ** (3 / 2)
     B_phi = 0
     return B_r, B_phi, B_z
 
@@ -395,7 +394,7 @@ def calculate_ad_mio(df, label=None, use_guiding_center=True, auto_scale=True, y
         v_perp_magnitude = np.linalg.norm(v_perp_vector)
 
         # Compute mu for each point
-        mu = m * v_perp_magnitude**2 / (2 * B_magnitude)
+        mu = m * v_perp_magnitude ** 2 / (2 * B_magnitude)
         mu_values.append(mu)
 
     # Plot mu versus time points
