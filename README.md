@@ -1,26 +1,43 @@
-# adiabatic_invariant_julia 🧲
 
-This project offers a numerical simulation of charged particle dynamics in EM (Electromagnetic) fields. It strives to
-model the magnetic nozzle structure and helps develop a stable, low-error method to preserve total energy and
-investigate the adiabatic invariant. This is part of an M.Sc. Thesis at the University of Saskatchewan - Particle in EM
-Fields, in the Department of Computer Science.
+# Particle Dynamics in Electromagnetic Fields Simulation
 
-## Installation Requirements 🛠️
+This project involves the numerical simulation of particle dynamics and properties in electromagnetic fields, using Julia for the core numerical computations and Python for visualization. The simulation tracks particle motion under specific initial conditions and renders both 2D and 3D plots to visualize the system's behavior over time.
 
-Follow these instructions to get your system up and running:
+## Table of Contents
+- [Project Overview](#project-overview)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Initial Conditions](#initial-conditions)
+  - [Running the Simulations](#running-the-simulations)
+  - [Visualization](#visualization)
+- [Plotting Options](#plotting-options)
+  - [2D Plotting Options](#2d-plotting-options)
+  - [3D Plotting Options](#3d-plotting-options)
+- [Configuration](#configuration)
+- [Contributors](#contributors)
 
-### 1. Install Julia 🚀
+## Project Overview
 
-Visit the [official website](https://julialang.org/downloads/) and follow the provided instructions to install Julia.
+This simulation project models the behavior of particles in electromagnetic fields. The simulation integrates the particle's equations of motion over time and visualizes the trajectory in both 2D and 3D spaces. It supports:
 
-### 2. Install Python and Pip 🐍
+- **Particle trajectory computation** in an electromagnetic field.
+- **Energy and momentum conservation** visualizations.
+- **2D and 3D plot generation** using Python libraries like Matplotlib and Plotly.
+- **Analysis of peaks** in particle motion data.
+
+
+## Installation
+
+### 1. Install Python, Julia and Pip
 
 - **Python:** Use the [Python official instructions](https://www.python.org/downloads/) to install Python on your OS.
 - **Pip:** To install Pip (needed for package installation), follow
   the [instructions here](https://pip.pypa.io/en/stable/installation/).
+- **Julia** Please follow the instruction in [Julia Official Download Page](https://julialang.org/downloads/).
 
-### 3. Install Julia and Python Packages 📦
+### 2. Install Julia and Python Packages 📦
 
+Ensure Julia is installed as it is used for the core numerical simulations, while Python is used for post-processing and visualization.
 In the root folder, run the following commands:
 
 ```bash
@@ -28,48 +45,84 @@ julia install_packages.jl
 python3 pip install -r requirements.txt
 ```
 
-## Running Simulation 🚀
+## Usage
 
-### Updating Initial Conditions
+### Initial Conditions
 
-Edit "**initial_conditions.txt**" to update the simulation's initial conditions.
-
-### Updating Simulation Equations
-
-Modify the functions "**CylindricalProblem!**" in "**Simulation2D.jl**" or "**Simulation3D.jl**" to change the dynamics
-of the simulations.
-
-### Numerical Simulation 🧮
-
-Run the Julia core using one of the following methods:
-
-a) **Single-Core Mode:** Use this command for single-core processing, then follow the on-screen instructions:
+Modify the system's initial conditions in the `initial_conditions.txt` file. The default conditions are:
 
 ```
-julia Start.jl
+theta_0 = π/10
+alpha_0 = π/2 
+beta_0 = 0
+phi_0 = π/2
+epsilon = 0.0005
+eps_phi = 0.0
+kappa = 0.0
+delta_star = 1.0
+number_of_trajectories = 10000
+time_end = 50000.0
 ```
 
-b) **Multi-Core Mode:** For multi-core processing, add '**-t [number of cores]**' before calling the Julia script.
-Here's an example using 4 cores:
+These parameters control the simulation's behavior and can be adjusted as needed.
 
-```
-julia -t 4 Start.jl
-```
+### Running the Simulations
 
-### Plotting The Results
+1. Ensure the Julia simulation script is configured correctly and generates the trajectory data.
+2. Use Python scripts to process and visualize the data:
 
-For 2D simulations please use:
+- **2D Plotting**:
+    ```bash
+    python plotter_2D.py
+    ```
 
-```
-python3 plotter_2D.py
-```
+- **3D Plotting**:
+    ```bash
+    python plotter_3D.py
+    ```
 
-And for 3D simulations please use:
+- **Energy and Momentum Visualization**:
+    ```bash
+    python plotter_energy_momentum_conservasion.py
+    ```
 
-```
-python3 plotter_3D.py
-```
+- **Peak Finder**:
+    ```bash
+    python peakfinder.py
+    ```
 
----
+### Visualization
 
-Happy Simulating! Feel free to contribute, report issues, or ask questions.
+The Python scripts use Matplotlib, Plotly, and Seaborn for plotting. The following visualizations are supported:
+
+- **2D Particle Trajectories**: Generated with `plotter_2D.py`.
+- **3D Particle Trajectories**: Created with `plotter_3D.py`.
+- **Energy and Momentum Conservation**: Tracked with `plotter_energy_momentum_conservasion.py`.
+
+## Plotting Options
+
+### 2D Plotting Options (`plotter_2D.py`)
+
+- **Trajectory Plot**: The script generates 2D projections of particle trajectories over time. You can customize the time range, axis labels, and line styles.
+- **Phase Space Plot**: Visualizes particle position vs. velocity for phase-space analysis.
+- **Custom Axes**: Allows users to set axis ranges, labels, and gridlines.
+- **Extremum Detection**: Use the `show_extremums_peaks` option to mark peaks in specified variables (e.g., density).
+
+### 3D Plotting Options (`plotter_3D.py`)
+
+- **3D Trajectory Plot**: Plots the particle's trajectory in 3D space. Rotate, pan, and zoom in on sections for detailed analysis.
+- **Interactive Plotting**: Built using Plotly, allowing users to interact with the plot (zoom, pan, rotate).
+- **Custom Colors and Themes**: Customize the colors and themes to highlight specific features.
+- **Subsampling**: For large datasets, subsampling reduces visual clutter while retaining the overall trajectory shape.
+- **Guiding Center Approximation**: If `based_on_guiding_center` is set to `true`, the guiding center approximation is used.
+
+## Configuration
+
+The `config.yaml` file contains settings for file paths, output formats, and simulation parameters. Key options:
+
+- **save_file_name**: Base name for the output file.
+- **save_file_extension**: File format for saved plots (e.g., `.svg` or `.png`).
+- **is_multi_files**: Set to `true` to process multiple CSV files.
+- **based_on_guiding_center**: If `true`, uses the guiding center approximation.
+- **simulation_parameters**: Control physical properties like `eps`, `epsphi`, `kappa`, `beta`, `alpha`, `theta`, and simulation time.
+- **method**: Numerical method for the simulation (e.g., `"Feagin14 Method"`).
