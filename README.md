@@ -68,8 +68,28 @@ These parameters control the simulation's behavior and can be adjusted as needed
 
 ### Running the Simulations
 
-1. Ensure the Julia simulation script is configured correctly and generates the trajectory data.
-2. Use Python scripts to process and visualize the data:
+#### Step 1: Running the Julia Simulation
+
+To start the simulation, ensure that the necessary Julia scripts (`Simulation2D.jl` and `Simulation3D.jl`) are available and configured. You can choose between a 2D or 3D simulation:
+
+1. Open a terminal or command prompt.
+2. Navigate to the directory where `Start.jl` and the associated simulation files are located.
+3. Run the simulation using the following command:
+
+    ```bash
+    julia Start.jl
+    ```
+
+4. Choose the type of simulation when prompted:
+   - **1** for the 3D simulation
+   - **2** for the 2D simulation
+   - **n** to exit the program
+
+5. After the simulation completes, you can modify the initial conditions in the respective simulation files if needed and run the simulation again.
+
+#### Step 2: Processing and Visualizing the Data with Python
+
+Once the simulation is complete, use Python scripts to process the generated trajectory data and visualize the results:
 
 - **2D Plotting**:
     ```bash
@@ -93,11 +113,13 @@ These parameters control the simulation's behavior and can be adjusted as needed
 
 ### Visualization
 
-The Python scripts use Matplotlib, Plotly, and Seaborn for plotting. The following visualizations are supported:
+The Python scripts utilize Matplotlib, Plotly, and Seaborn for generating visualizations. The following types of plots are supported:
 
-- **2D Particle Trajectories**: Generated with `plotter_2D.py`.
-- **3D Particle Trajectories**: Created with `plotter_3D.py`.
-- **Energy and Momentum Conservation**: Tracked with `plotter_energy_momentum_conservasion.py`.
+- **2D Particle Trajectories**: Generated using the `plotter_2D.py` script.
+- **3D Particle Trajectories**: Created using the `plotter_3D.py` script.
+- **Energy and Momentum Conservation**: Visualized using the `plotter_energy_momentum_conservasion.py` script.
+- **Peak Detection**: Analyzed and visualized with the `peakfinder.py` script, showing critical points in the particle motion data.
+
 
 ## Plotting Options
 
