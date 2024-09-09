@@ -7,3 +7,4 @@ rich
 numpy
 scipy
 seaborn
+colorama

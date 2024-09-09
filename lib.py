@@ -4,36 +4,44 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
+from tabulate import tabulate
+from colorama import Fore, Style, init
+
+
+def print_styled(text, color=Fore.WHITE, style=Style.NORMAL):
+    print(f"{style}{color}{text}{Style.RESET_ALL}")
 
 
 def search_for_export_csv():
-    # get all files in current directory
+    # Get all files in current directory
     files = os.listdir()
 
-    # filter out files with csv extension
+    # Filter out files with csv extension
     csv_files = [file for file in files if file.endswith(".csv")]
 
-    # print the list of csv files
-    print("CSV files in current directory:")
-    for i, file in enumerate(csv_files):
-        print(f"{i + 1}. {file}")
+    if not csv_files:
+        print_styled("No CSV files found in the current directory.", Fore.RED)
+        return None
 
-    # ask user to choose a file
+    # Create a table of CSV files
+    file_table = [[i + 1, file] for i, file in enumerate(csv_files)]
+
+    # Print the list of csv files using tabulate
+    print_styled("\nCSV files in current directory:", Fore.CYAN)
+    print(tabulate(file_table, headers=["#", "Filename"], tablefmt="fancy_grid"))
+
+    # Ask user to choose a file
     while True:
         choice = input("Choose a file (enter a number from the list): ")
         try:
             choice = int(choice)
-            if choice > 0 and choice <= len(csv_files):
-                break
+            if 1 <= choice <= len(csv_files):
+                selected_file = csv_files[choice - 1]
+                print_styled(f"Selected file: {selected_file}", Fore.GREEN)
+                return selected_file
         except ValueError:
             pass
-        print("Invalid choice, please try again.")
-
-    # print the selected file name
-    selected_file = csv_files[choice - 1]
-    print(f"Selected file: {selected_file}")
-
-    return selected_file
+        print_styled("Invalid choice, please try again.", Fore.RED)
 
 
 def extract_parameters_by_file_name(fname):
