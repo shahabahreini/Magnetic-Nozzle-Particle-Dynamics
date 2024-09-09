@@ -255,13 +255,7 @@ The 2D simulation models particle motion in **cylindrical coordinates** (`ρ`, `
 ### 3D Simulation:
 
 The 3D simulation solves for **radial distance** (`ρ`), **vertical position** (`z`), and **azimuthal angle** (`φ`). The key equations of motion involve:
-
-- **Radial and Vertical Motion**:
-
-   ![equation](https://latex.codecogs.com/png.latex?%5Cdpi%7B300%7D%20%5Cfrac%7Bd%5E2%20%5Crho%7D%7Bdt%5E2%7D%2C%20%5Cfrac%7Bd%5E2%20z%7D%7Bdt%5E2%7D%2C%20%5Cfrac%7Bd%5E2%20%5Cphi%7D%7Bdt%5E2%7D)
-
-   This simulates the full trajectory in a 3D cylindrical coordinate system under magnetic and electric fields.
-
+This simulates the full trajectory in a 3D cylindrical coordinate system under magnetic and electric fields.
 The guiding center approximation can also be employed for specific scenarios.
 
 - **Magnetic Flux Function**:
