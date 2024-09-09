@@ -266,7 +266,9 @@ The guiding center approximation can also be employed for specific scenarios.
 
 - **Magnetic Flux Function**:
 
-   $$\Phi = \kappa  \Phi _0 \left(1-\delta_*^2 \left(1-\frac{z^2}{R^2+z^2}\right)\right) \ln \left(\frac{1}{R^2+z^2}\right)+\frac{1}{2} \phi _0 \left(1-\frac{z^2}{R^2+z^2}\right) $$
+   ```math 
+    \Phi = \kappa  \Phi _0 \left(1-\delta_*^2 \left(1-\frac{z^2}{R^2+z^2}\right)\right) \ln \left(\frac{1}{R^2+z^2}\right)+\frac{1}{2} \phi _0 \left(1-\frac{z^2}{R^2+z^2}\right)
+  ```
 
 - **Expanded Derivatives**:
 
