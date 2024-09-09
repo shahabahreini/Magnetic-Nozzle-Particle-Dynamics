@@ -274,12 +274,19 @@ The guiding center approximation can also be employed for specific scenarios.
 
    Radial derivative:
    
-   ![equation](https://latex.codecogs.com/png.latex?%5Cdpi%7B300%7D%20%5Cfrac%7B%5Cpartial%20%5CPhi%7D%7B%5Cpartial%20R%7D%3D%5Cfrac%7BR%20%5CPhi%20_0%20%5Cleft(-2%20%5Ckappa%20R%5E2&plus;2%20%5Cdelta_%2A%5E2%20%5Ckappa%20%5Cleft(R%5E2-z%5E2%20%5Clog%20%5Cleft(%5Cfrac%7B1%7D%7BR%5E2&plus;z%5E2%7D%5Cright)%5Cright)&plus;(1-2%20%5Ckappa%20)%20z%5E2%5Cright)%7D%7B%5Cleft(R%5E2&plus;z%5E2%5Cright)%5E2%7D)
+    ```math
+  \frac{\partial \Phi}{\partial R}=\frac{R \Phi _0 \left(-2 \kappa  R^2+2 \delta_*^2 \kappa  \left(R^2-z^2 \log
+   \left(\frac{1}{R^2+z^2}\right)\right)+(1-2 \kappa )
+   z^2\right)}{\left(R^2+z^2\right)^2}
+    ```   
 
    Vertical derivative:
    
-   ![equation](https://latex.codecogs.com/png.latex?%5Cdpi%7B300%7D%20%5Cfrac%7B%5Cpartial%20%5CPhi%7D%7B%5Cpartial%20z%7D%3D-%5Cfrac%7Bz%20%5CPhi%20_0%20%5Cleft((2%20%5Ckappa%20&plus;1)%20R%5E2-2%20%5Cdelta_%2A%5E2%20%5Ckappa%20R%5E2%20%5Cleft(%5Clog%20%5Cleft(%5Cfrac%7B1%7D%7BR%5E2&plus;z%5E2%7D%5Cright)&plus;1%5Cright)&plus;2%20%5Ckappa%20z%5E2%5Cright)%7D%7B%5Cleft(R%5E2&plus;z%5E2%5Cright)%5E2%7D)
-
+    ```math
+  \frac{\partial \Phi}{\partial z}=-\frac{z \Phi _0 \left((2 \kappa +1) R^2-2 \delta_*^2 \kappa  R^2 \left(\log
+   \left(\frac{1}{R^2+z^2}\right)+1\right)+2 \kappa 
+   z^2\right)}{\left(R^2+z^2\right)^2}
+    ```   
 These equations describe the magnetic flux function and its derivatives in the radial and vertical directions, which are crucial for understanding the magnetic field structure in the simulation.
 
 
