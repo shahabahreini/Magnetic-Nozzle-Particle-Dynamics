@@ -32,10 +32,10 @@ while true
 
     if choice == "1"
         simulate_3D()
-		println("$(BOLD)2D simulation is done. Now you can update the initial conditions and run it again.$(RESET)")
+		println("$(BOLD)3D simulation is done. Now you can update the initial conditions and run it again.$(RESET)")
     elseif choice == "2"
         simulate_2D()
-		println("$(BOLD)3D simulation is done. Now you can update the initial conditions and run it again.$(RESET)")
+		println("$(BOLD)2D simulation is done. Now you can update the initial conditions and run it again.$(RESET)")
     elseif choice == "n"
         break
     else

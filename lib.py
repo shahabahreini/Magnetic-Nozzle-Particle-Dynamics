@@ -1,11 +1,19 @@
-import os
-import re
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from tabulate import tabulate
 from colorama import Fore, Style, init
+import os
+import pandas as pd
+from rich.console import Console
+from rich.table import Table
+from rich.prompt import Prompt, IntPrompt
+from rich.progress import Progress
+import matplotlib.pyplot as plt
+import re
+from datetime import datetime
+from collections import defaultdict
+
+console = Console()
 
 
 def print_styled(text, color=Fore.WHITE, style=Style.NORMAL):
@@ -448,3 +456,60 @@ def calculate_ad_mio(df, label=None, use_guiding_center=True, auto_scale=True, y
     plt.legend()
 
     return df['timestamp'], mu_values
+
+
+def get_axis_label(param):
+    labels = {
+        'rho': r'$\tilde{R}$',
+        'z': r'$\tilde{Z}$',
+        'drho': r'$d\tilde{R}/d\tau$',
+        'dz': r'$d\tilde{Z}/d\tau$',
+        'timestamp': r'$\tau$',
+        'omega_rho': r'$\omega_{\tilde{R}}$',
+        'omega_z': r'$\omega_{\tilde{Z}}$',
+        'eps': r'$\epsilon$',
+        'epsphi': r'$\epsilon_{\phi}$',
+        'kappa': r'$\kappa$',
+        'deltas': r'$\delta_s$',
+        'beta': r'$\beta$',
+        'alpha': r'$\alpha$',
+        'theta': r'$\theta$',
+        'time': r'$\tau$'
+    }
+    return labels.get(param, param)
+
+
+def list_folders(root='.'):
+    # List all directories in the root folder
+    folders = [f for f in os.listdir(root) if os.path.isdir(os.path.join(root, f))]
+    if not folders:
+        console.print("[red]No folders found in the current directory![/red]")
+        exit(1)
+
+    table = Table(title="Available Folders")
+    table.add_column("#", justify="center", style="cyan", no_wrap=True)
+    table.add_column("Folder", style="magenta")
+
+    for i, folder in enumerate(folders, 1):
+        table.add_row(str(i), folder)
+
+    console.print(table)
+    return folders
+
+
+def list_csv_files(folder):
+    # List all CSV files in the selected folder
+    files = [f for f in os.listdir(folder) if f.endswith('.csv')]
+    if not files:
+        console.print(f"[red]No CSV files found in the folder '{folder}'![/red]")
+        exit(1)
+
+    table = Table(title=f"\nCSV Files in '{folder}'")
+    table.add_column("#", justify="center", style="cyan", no_wrap=True)
+    table.add_column("Filename", style="magenta")
+
+    for i, file in enumerate(files, 1):
+        table.add_row(str(i), file)
+
+    console.print(table)
+    return files

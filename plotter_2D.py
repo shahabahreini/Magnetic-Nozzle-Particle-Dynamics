@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import re
 from datetime import datetime
 from collections import defaultdict
+from lib import get_axis_label, list_csv_files, list_folders
 
 console = Console()
 
@@ -55,63 +56,6 @@ def find_common_and_varying_params(files):
     sorted_varying_params = {file: varying_params[file] for file, _ in sorted_files}
 
     return common_params, sorted_varying_params, [file for file, _ in sorted_files]
-
-
-def list_folders(root='.'):
-    # List all directories in the root folder
-    folders = [f for f in os.listdir(root) if os.path.isdir(os.path.join(root, f))]
-    if not folders:
-        console.print("[red]No folders found in the current directory![/red]")
-        exit(1)
-
-    table = Table(title="Available Folders")
-    table.add_column("#", justify="center", style="cyan", no_wrap=True)
-    table.add_column("Folder", style="magenta")
-
-    for i, folder in enumerate(folders, 1):
-        table.add_row(str(i), folder)
-
-    console.print(table)
-    return folders
-
-
-def list_csv_files(folder):
-    # List all CSV files in the selected folder
-    files = [f for f in os.listdir(folder) if f.endswith('.csv')]
-    if not files:
-        console.print(f"[red]No CSV files found in the folder '{folder}'![/red]")
-        exit(1)
-
-    table = Table(title=f"CSV Files in '{folder}'")
-    table.add_column("#", justify="center", style="cyan", no_wrap=True)
-    table.add_column("Filename", style="magenta")
-
-    for i, file in enumerate(files, 1):
-        table.add_row(str(i), file)
-
-    console.print(table)
-    return files
-
-
-def get_axis_label(param):
-    labels = {
-        'rho': r'$\tilde{R}$',
-        'z': r'$\tilde{Z}$',
-        'drho': r'$d\tilde{R}/d\tau$',
-        'dz': r'$d\tilde{Z}/d\tau$',
-        'timestamp': r'$\tau$',
-        'omega_rho': r'$\omega_{\tilde{R}}$',
-        'omega_z': r'$\omega_{\tilde{Z}}$',
-        'eps': r'$\epsilon$',
-        'epsphi': r'$\epsilon_{\phi}$',
-        'kappa': r'$\kappa$',
-        'deltas': r'$\delta_s$',
-        'beta': r'$\beta$',
-        'alpha': r'$\alpha$',
-        'theta': r'$\theta$',
-        'time': r'$\tau$'
-    }
-    return labels.get(param, param)
 
 
 def plot_csv_files(files, folder, x_param, y_param, mode, progress, task):
