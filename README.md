@@ -257,11 +257,15 @@ The 2D simulation models particle motion in **cylindrical coordinates** (`ρ`, `
 The 3D simulation solves for **radial distance** (`ρ`), **vertical position** (`z`), and **azimuthal angle** (`φ`). The key equations of motion involve:
 
 
-   ```math 
- &\frac{d{\widetilde{R}}^2}{{d\tau}^2}=\frac{ \widetilde{R}.\widetilde{z}}{{(\widetilde{R}^2+\widetilde{z}^2)}^{3/2}} \frac{d\phi}{d\tau}+ \widetilde{R} ({\frac{d\phi}{d\tau}})^2-\epsilon_\phi\frac{\partial \widetilde{\Phi}}{\partial \widetilde{R}}\\
-&\frac{d{\widetilde{\phi}}^2}{{d\tau}^2}=\space(\frac{1}{{(\widetilde{R}^2+\widetilde{z}^2)}^{3/2}} (\widetilde{R}\frac{d\widetilde{z}}{d\tau}-\widetilde{z}\frac{d\widetilde{R}}{d\tau})- 2\frac{d\widetilde{R}}{d\tau}\frac{d\phi}{d\tau})/\widetilde{R}\\
-&\frac{d{\widetilde{z}}^2}{{d\tau}^2}=- \frac{\widetilde{R}^2}{{(\widetilde{R}^2+\widetilde{z}^2)}^{3/2}} \frac{d\phi}{d\tau}-\epsilon_\phi\frac{\partial \widetilde{\Phi}}{\partial \widetilde{z}}
-  ```
+```math 
+\frac{d{\widetilde{R}}^2}{{d\tau}^2}=\frac{ \widetilde{R}.\widetilde{z}}{{(\widetilde{R}^2+\widetilde{z}^2)}^{3/2}} \frac{d\phi}{d\tau}+ \widetilde{R} ({\frac{d\phi}{d\tau}})^2-\epsilon_\phi\frac{\partial \widetilde{\Phi}}{\partial \widetilde{R}}
+```
+```math 
+\frac{d{\widetilde{\phi}}^2}{{d\tau}^2}=\space(\frac{1}{{(\widetilde{R}^2+\widetilde{z}^2)}^{3/2}} (\widetilde{R}\frac{d\widetilde{z}}{d\tau}-\widetilde{z}\frac{d\widetilde{R}}{d\tau})- 2\frac{d\widetilde{R}}{d\tau}\frac{d\phi}{d\tau})/\widetilde{R}
+```
+```math 
+\frac{d{\widetilde{z}}^2}{{d\tau}^2}=- \frac{\widetilde{R}^2}{{(\widetilde{R}^2+\widetilde{z}^2)}^{3/2}} \frac{d\phi}{d\tau}-\epsilon_\phi\frac{\partial \widetilde{\Phi}}{\partial \widetilde{z}}
+```
 
 This simulates the full trajectory in a 3D cylindrical coordinate system under magnetic and electric fields.
 The guiding center approximation can also be employed for specific scenarios.
