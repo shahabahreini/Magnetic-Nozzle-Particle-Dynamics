@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import matplotlib.colors as colors
-from mpl_toolkits.mplot3d import Axes3D
+from collections import defaultdict
 from rich import print
 from rich.console import Console
 from rich.table import Table
@@ -13,7 +13,6 @@ from rich.prompt import Prompt, IntPrompt
 from rich.progress import Progress
 from lib import search_for_export_csv, extract_parameters_by_file_name, list_csv_files, list_folders
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-
 
 console = Console()
 
@@ -61,6 +60,26 @@ GREEK_SYMBOLS = {
     "dbeta": r"v_\beta",
     "rho": r"\rho",
     "drho": r"v_\rho",
+    "epsphi": r"\epsilon_{\phi}",
+    "eps": r"\epsilon",
+    "kappa": r"\kappa",
+    "deltas": r"\delta_s",
+    "beta": r"\beta",
+    "alpha": r"\alpha",
+}
+
+GREEK_SYMBOLS_InitialCondition = {
+    "theta": r"\theta_0",
+    "phi": r"\phi_0",
+    "alpha": r"\alpha_0",
+    "beta": r"\beta_0",
+    "time": r"\tau",
+    "timestamp": r"\tau",
+    "kappa": r"\kappa_0",
+    "deltas": r"\delta_s",
+    "beta": r"\beta_0",
+    "alpha": r"\alpha_0",
+    "epsphi": r"\epsilon_{\phi}",
 }
 
 
@@ -96,27 +115,48 @@ def setup_plot(plot_type):
     return fig, ax, ax_params
 
 
-def plot_2d(ax, df, x_param, y_param, time, color_map, norm, kappa):
+def get_axis_label(param, initial_condition=False):
+    """Get the appropriate axis label with Greek symbols if applicable."""
+    if initial_condition:
+        greek_symbol = GREEK_SYMBOLS_InitialCondition.get(param, param)
+    else:
+        greek_symbol = GREEK_SYMBOLS.get(param, param)
+    return f"{greek_symbol}" if greek_symbol != param else param
+
+
+def plot_2d(ax, df, x_param, y_param, time, color_map, norm, label):
     """Plot 2D scatter and line plots."""
     x_, y_ = df[x_param], df[y_param]
     ax.scatter(x_, y_, c=time, cmap=color_map, norm=norm, s=2)
-    ax.plot(x_, y_, alpha=0.3, label=rf"$\kappa = {kappa}$")
+    ax.plot(x_, y_, alpha=0.3, label=label)
+
+    # Set axis labels with Greek symbols if applicable
+    ax.set_xlabel(get_axis_label(x_param))
+    ax.set_ylabel(get_axis_label(y_param))
 
 
-def plot_3d(ax, df, coord_system, time, color_map, norm, kappa):
+def plot_3d(ax, df, coord_system, time, color_map, norm, label):
     """Plot 3D scatter and line plots with projections."""
     if coord_system == "cylindrical":
         x, y, z = df["rho"], df["phi"], df["z"]
+        x_label, y_label, z_label = r"$\rho$", r"$\phi$", r"$z$"
     else:
         x, y, z = cylindrical_to_cartesian(df["rho"], df["phi"], df["z"])
+        x_label, y_label, z_label = r"$x$", r"$y$", r"$z$"
 
     ax.scatter(x, y, z, c=time, cmap=color_map, norm=norm, s=2)
-    ax.plot(x, y, z, alpha=0.3, label=rf"$\kappa = {kappa}$")
+    ax.plot(x, y, z, alpha=0.3, label=label)
 
     # Add projections
     ax.plot(x, y, min(z), "k--", alpha=0.2)
     ax.plot(x, [min(y)] * len(x), z, "k--", alpha=0.2)
     ax.plot([min(x)] * len(y), y, z, "k--", alpha=0.2)
+
+    # Set axis labels
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_zlabel(z_label)
+
     return x, y, z
 
 
@@ -140,7 +180,7 @@ def set_axis_properties(ax, plot_type, x_param, y_param):
 def set_3d_equal_aspect(ax, x, y, z):
     """Set equal aspect ratio for 3D plot."""
     max_range = (
-        np.array([x.max() - x.min(), y.max() - y.min(), z.max() - z.min()]).max() / 2.0
+            np.array([x.max() - x.min(), y.max() - y.min(), z.max() - z.min()]).max() / 2.0
     )
     mid_x, mid_y, mid_z = [(x.max() + x.min()) * 0.5 for x in (x, y, z)]
     ax.set_xlim(mid_x - max_range, mid_x + max_range)
@@ -148,23 +188,25 @@ def set_3d_equal_aspect(ax, x, y, z):
     ax.set_zlim(mid_z - max_range, mid_z + max_range)
 
 
-def add_parameter_textbox(ax_params, params):
+def add_parameter_textbox(ax_params, common_params, varying_params):
     """Add a text box with simulation parameters."""
     ax_params.axis("off")
     props = dict(boxstyle="round", facecolor="wheat", alpha=0.5)
-    param_text = (
-        "Simulation Parameters:\n\n"
-        f"$\\theta_0$ = {params['theta']}°\n"
-        f"$\\alpha_0$ = {params['alpha']}°\n"
-        f"$\\beta_0$ = {params['beta']}°\n"
-        f"$\\phi_0$ = 0.0°\n"
-        f"$\\delta^*$ = {params['deltas']}\n"
-        f"$\\varepsilon_\\phi$ = {params['epsphi']}\n"
-        f"$\\varepsilon$ = {params['eps']}\n"
-        f"$\\kappa$ = {params['kappa']}\n"
-        f"$\\tau$ = {params['time']}\n\n"
-        f"Method: {CONFIG['method']}"
-    )
+
+    param_text = "Simulation Parameters:\n\n"
+
+    # Add common parameters
+    for param, value in common_params.items():
+        param_text += rf"${get_axis_label(param, True)} = {value}$" + "\n"
+
+    # Add varying parameters
+    param_text += "\nVarying Parameters:\n"
+    unique_varying_params = set(param.split('=')[0] for params in varying_params.values() for param in params)
+    for param in unique_varying_params:
+        param_text += rf"${get_axis_label(param, True)}$" + "\n"
+
+    param_text += f"\nMethod: {CONFIG['method']}"
+
     ax_params.text(
         0.05,
         0.95,
@@ -176,14 +218,44 @@ def add_parameter_textbox(ax_params, params):
     )
 
 
+def find_common_and_varying_params(files):
+    all_params = [(file, extract_parameters_by_file_name(file)) for file in files]
+    common_params = {}
+    varying_params = defaultdict(list)
+
+    # Extract parameter names
+    param_names = set(all_params[0][1].keys())
+
+    # Find common parameters
+    for param in param_names:
+        param_values = [params[param] for _, params in all_params]
+        if all(v == param_values[0] for v in param_values):
+            # If the parameter is the same for all files, it's common
+            common_params[param] = param_values[0]
+        else:
+            # Otherwise, it's a varying parameter
+            for file, params in all_params:
+                varying_params[file].append(f"{get_axis_label(param)}={params[param]}")
+
+    # Sort files based on one of the varying parameters (e.g., 'eps')
+    sorted_files = sorted(all_params, key=lambda x: x[1].get('eps', 0))
+
+    # Sort varying parameters based on file order
+    sorted_varying_params = {file: varying_params[file] for file, _ in sorted_files}
+
+    return common_params, sorted_varying_params, [file for file, _ in sorted_files]
+
+
 def Plotter(file_list, folder_path, x_param, y_param, plot_type="2d", coord_system="cartesian"):
     """Main plotting function."""
     fig, ax, ax_params = setup_plot(plot_type)
 
-    with Progress() as progress:
-        task = progress.add_task("[cyan]Processing files...", total=len(file_list))
+    common_params, varying_params, sorted_files = find_common_and_varying_params(file_list)
 
-        for fname in file_list:
+    with Progress() as progress:
+        task = progress.add_task("[cyan]Processing files...", total=len(sorted_files))
+
+        for fname in sorted_files:
             full_path = os.path.join(folder_path, fname)
             df = pd.read_csv(full_path)
             params = extract_parameters_by_file_name(fname)
@@ -192,14 +264,14 @@ def Plotter(file_list, folder_path, x_param, y_param, plot_type="2d", coord_syst
             norm = colors.Normalize(vmin=time.min(), vmax=time.max())
             color_map = plt.cm.viridis
 
+            label = ", ".join(
+                [f"${GREEK_SYMBOLS.get(param.split('=')[0], param.split('=')[0])}={param.split('=')[1]}$" for param in
+                 varying_params[fname]])
+
             if plot_type == "2d":
-                plot_2d(
-                    ax, df, x_param, y_param, time, color_map, norm, params["kappa"]
-                )
+                plot_2d(ax, df, x_param, y_param, time, color_map, norm, label)
             else:
-                x, y, z = plot_3d(
-                    ax, df, coord_system, time, color_map, norm, params["kappa"]
-                )
+                x, y, z = plot_3d(ax, df, coord_system, time, color_map, norm, label)
 
             progress.update(task, advance=1)
 
@@ -220,11 +292,11 @@ def Plotter(file_list, folder_path, x_param, y_param, plot_type="2d", coord_syst
         bbox_to_anchor=(0.5, -0.15 if plot_type == "2d" else -0.05),
         fancybox=True,
         shadow=True,
-        ncol=5,
+        ncol=3,
         fontsize=8,
     )
 
-    add_parameter_textbox(ax_params, params)
+    add_parameter_textbox(ax_params, common_params, varying_params)
 
     plt.tight_layout(rect=[0, 0.03, 0.9, 0.95])
 
@@ -236,6 +308,7 @@ def Plotter(file_list, folder_path, x_param, y_param, plot_type="2d", coord_syst
     plt.savefig(path_to_save, dpi=300, bbox_inches="tight")
     console.print(f"[green]Plot saved as:[/green] [bold]{path_to_save}[/bold]")
     plt.show()
+
 
 def main():
     """Main function to run the interactive plotter."""
@@ -276,7 +349,7 @@ def main():
                 return
         else:
             selected_files = files  # Plot all files if Enter is pressed without input
-        
+
         console.print("\n[yellow]Listing CSV files in the target folder...[/yellow]")
 
     else:
@@ -321,6 +394,7 @@ def main():
         x_param = y_param = None
 
     Plotter(selected_files, folder_path, x_param, y_param, plot_type, coord_system)
+
 
 if __name__ == "__main__":
     main()
