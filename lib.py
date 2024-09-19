@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 import re
 from datetime import datetime
 from collections import defaultdict
+from plotter_violation import load_and_calculate_variation
+from plotter_velocity_components import plot_velocity_components
 
 console = Console()
 
@@ -260,6 +262,8 @@ def epsilon_calculate(B_x, B_z, extremum_idx, time, label=None):
         epsilon = omega_g * tau_B / epsilon_i
         epsilon_values.append(epsilon)
 
+    np.savetxt("integral.csv", np.array(epsilon_values), delimiter=",")
+    
     # Plot epsilon versus cycles
     plt.plot(range(len(epsilon_values)), epsilon_values, label=label)
     plt.xlabel('Cycles')
@@ -329,7 +333,9 @@ def epsilon_calculate_allPoints(B_x, B_z, time, label=None):
         tau_B = time[i + 1] - time[i]
         epsilon = omega_g * tau_B / epsilon_i
         epsilon_values.append(epsilon)
-
+    
+    np.savetxt("integral.csv", np.array(epsilon_values), delimiter=",")
+    
     # Plot epsilon versus cycles
     plt.plot(range(len(epsilon_values)), epsilon_values, label=label)
     plt.xlabel('Cycles')
@@ -359,6 +365,87 @@ def calculate_guiding_center(B, v, rho, z):
     r_gc_z = z - R_gc[2]
     return r_gc_rho, r_gc_z
 
+# ------------------------------ Magnetic Field ------------------------------ #
+# Define the components of the magnetic field in cylindrical coordinates
+def B_rho(rho, z):
+    return rho / (rho ** 2 + z ** 2) ** (3 / 2)
+
+def B_z(rho, z):
+    return z / (rho ** 2 + z ** 2) ** (3 / 2)
+
+def B_phi(rho, z):
+    return 0  # Given that B_phi = 0
+
+# Compute the magnitude of the magnetic field
+def B_magnitude(rho, z):
+    Br = B_rho(rho, z)
+    Bz = B_z(rho, z)
+    Bphi = B_phi(rho, z)
+    return np.sqrt(Br ** 2 + Bphi ** 2 + Bz ** 2)
+
+# Calculate the gradient of B using numerical differentiation
+def gradient_B_magnitude(rho, z):
+    # Define the magnetic field components
+    B_r = rho / (rho**2 + z**2)**(3/2)
+    B_z = z / (rho**2 + z**2)**(3/2)
+
+    # Calculate partial derivatives of B_r
+    dB_r_drho = (z**2 - 2 * rho**2) / (rho**2 + z**2)**(5/2)
+    dB_r_dz = -3 * rho * z / (rho**2 + z**2)**(5/2)
+
+    # Calculate partial derivatives of B_z
+    dB_z_drho = -3 * rho * z / (rho**2 + z**2)**(5/2)
+    dB_z_dz = (rho**2 - 2 * z**2) / (rho**2 + z**2)**(5/2)
+
+    # Calculate the magnitude of the gradient
+    gradient_magnitude = np.sqrt(dB_r_drho**2 + dB_r_dz**2 + dB_z_drho**2 + dB_z_dz**2)
+    
+    return gradient_magnitude
+
+# Calculate the magnetic field scale length
+def L_B(rho, z):
+    B = B_magnitude(rho, z)
+    grad_B = gradient_B_magnitude(rho, z)
+    return B / grad_B
+# ------------------------------------- - ------------------------------------ #
+
+def calculate_velocity_components(B, v):
+    # Calculate the magnitude (norm) of the magnetic field vector B
+    norm_B = np.linalg.norm(B)
+    
+    # Ensure we avoid division by zero
+    if norm_B == 0:
+        raise ValueError("The magnetic field magnitude is zero. Cannot calculate velocity components.")
+    
+    # Calculate the unit vector of the magnetic field
+    unit_B = B / norm_B
+    
+    # Calculate the component of the velocity parallel to the magnetic field
+    v_parallel_B = np.dot(v, unit_B) * unit_B
+    
+    # Calculate the component of the velocity perpendicular to the magnetic field
+    v_perpendicular_B = v - v_parallel_B
+    
+    return v_parallel_B, v_perpendicular_B
+
+def calculate_adiabaticity(B, v, rho, z):
+    # Calculate the velocity components
+    v_parallel_B, v_perpendicular_B = calculate_velocity_components(B, v)
+    
+    # Calculate the magnitude (norm) of the magnetic field vector B
+    norm_B = np.linalg.norm(B)
+    
+    # Calculate the gyroradius (r_gyro = v_perpendicular / |B|)
+    gyroradius = np.linalg.norm(v_perpendicular_B) / norm_B
+    
+    # Calculate the magnetic field scale length L_B (assuming L_B is defined elsewhere)
+    L_B_value = L_B(rho, z)
+    
+    # Calculate the adiabaticity parameter (mu = r_gyro / L_B)
+    adiabaticity = gyroradius / L_B_value
+    
+    return adiabaticity
+
 
 def calculate_ad_mio(df, label=None, use_guiding_center=True, auto_scale=True, y_margin=1e-40, param_dict=None):
     """
@@ -387,6 +474,9 @@ def calculate_ad_mio(df, label=None, use_guiding_center=True, auto_scale=True, y
     df['v_z'] = df['dz']
 
     mu_values = []
+    adiabaticity_values = []
+    v_parallel_B_values = []
+    v_perpendicular_B_values = []
 
     for i, row in df.iterrows():
         # Compute magnetic field components at the particle's position
@@ -408,11 +498,34 @@ def calculate_ad_mio(df, label=None, use_guiding_center=True, auto_scale=True, y
         B_unit = B / B_magnitude
         v_perp_vector = v - np.dot(v, B_unit) * B_unit
         v_perp_magnitude = np.linalg.norm(v_perp_vector)
+        
+        v_parallel_B, v_perpendicular_B = calculate_velocity_components(B, v)
+        v_parallel_B_values.append(np.linalg.norm(v_parallel_B))
+        v_perpendicular_B_values.append(np.linalg.norm(v_perpendicular_B))
 
+        # adiabaticity = calculate_adiabaticity(B, v, row['rho'], row['z'])
+        # mu_values.append(adiabaticity)
+        
         # Compute mu for each point
         mu = m * v_perp_magnitude ** 2 / (2 * B_magnitude)
         mu_values.append(mu)
+        
+        
+    # Save array to a CSV file
+    # np.savetxt("array.csv", np.array(mu_values), delimiter=",")
 
+    # Plotting violation of adiabatic invariant  
+    load_and_calculate_variation(mu_values, df['timestamp'], param_dict['eps'])
+    
+    # Plotting Velocity components
+    plot_velocity_components(
+        df['timestamp'],
+        v_parallel_B_values,
+        v_perpendicular_B_values,
+        title='Sample Velocity Components',
+        subtitle=None
+    )
+        
     # Plot mu versus time points
     plt.plot(df['timestamp'], mu_values, label=label)
 

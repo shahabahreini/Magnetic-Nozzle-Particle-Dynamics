@@ -14,6 +14,7 @@ from scipy.signal import argrelextrema, find_peaks_cwt, find_peaks
 from scipy.misc import electrocardiogram
 from findpeaks import findpeaks
 import yaml
+from plotter_violation import load_and_calculate_variation
 
 
 # ---------------------------------- Config ---------------------------------- #
@@ -31,6 +32,8 @@ class Configuration:
         self.calculate_integral = self.config["calculate_integral"]
         self.calculate_traditional_magneticMoment = self.config[
             "calculate_traditional_magneticMoment"]
+        self.show_extremums_peaks = self.config[
+            "show_extremums_peaks"]
 
     def load_config(self, config_path):
         with open(config_path, 'r') as config_file:
@@ -131,7 +134,10 @@ def plotter(path_, fname_):
 
         # Collect data for sorting
         plot_data.append((eps, x_axis_data, y_axis_data, fname))
-
+        
+    # np.savetxt("integral2.csv", np.array(y_axis_data), delimiter=",")
+    # load_and_calculate_variation(y_axis_data, x_axis_data)
+    
     # Sort the plot data by epsilon in descending order
     plot_data.sort(reverse=True, key=lambda x: x[0])
 
@@ -163,7 +169,7 @@ def plotter(path_, fname_):
     plt.savefig(path_to_save, dpi=600)
     path_to_save = os.path.join(plots_folder, str(save_file_name + ".png"))
     plt.savefig(path_to_save, dpi=600)
-    plt.show()
+    plt.show() 
 
 
 def perform_adiabatic_calculations(chosen_csv, auto_scale=True, y_margin=1e-17):

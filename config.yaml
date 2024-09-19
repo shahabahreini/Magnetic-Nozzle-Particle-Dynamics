@@ -1,6 +1,7 @@
 save_file_name: "2D_omega"
 save_file_extension: ".svg"
-is_multi_files: true
+is_multi_files: false
+show_extremums_peaks: true
 based_on_guiding_center: true
 target_folder_multi_files: "./csv/"
 plots_folder: "plots"
