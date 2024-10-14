@@ -30,6 +30,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 import re
+import datetime
 from lib import (
     search_for_export_csv,
     extract_parameters_by_file_name,
@@ -41,9 +42,9 @@ from lib import (
 CONFIG = {
     "CSV_FOLDER": "/high/",
     "EXPORT_IMAGE_EXTENSION": "svg",
-    "IS_MULTI_FILES": True,
+    "IS_MULTI_FILES": False,
     "DPI": 600,
-    "USE_METHOD_LEGEND": True,  # Can be overridden by command-line argument
+    "USE_METHOD_LEGEND": False,  # Can be overridden by command-line argument
     "DEFAULT_PARAMETERS": {
         "eps": 0.0177,
         "epsphi": 0.0,
@@ -183,7 +184,23 @@ def plotter(chosen_csv, save_filename, parameter_dict, plot_type):
 
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f"plots/{save_filename}.{CONFIG['EXPORT_IMAGE_EXTENSION']}", dpi=CONFIG["DPI"])
+    # Generate a timestamp for the filename
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Create a meaningful filename
+    meaningful_name = f"{plot_type}_{parameter_dict['eps']}_{parameter_dict['kappa']}_{parameter_dict['deltas']}"
+    if electric_field_included:
+        meaningful_name += f"_EF_{parameter_dict['epsphi']}"
+    
+    full_filename = f"{timestamp}_{meaningful_name}_{save_filename}"
+
+    # Ensure the 'plots' directory exists
+    os.makedirs("plots", exist_ok=True)
+
+    # Save the figure
+    plt.savefig(f"plots/{full_filename}.{CONFIG['EXPORT_IMAGE_EXTENSION']}", dpi=CONFIG["DPI"])
+    print(f"Plot saved as: plots/{full_filename}.{CONFIG['EXPORT_IMAGE_EXTENSION']}")
+    
     plt.show()
 
 if __name__ == "__main__":
@@ -195,4 +212,9 @@ if __name__ == "__main__":
     CONFIG["USE_METHOD_LEGEND"] = args.use_method_legend
 
     chosen_csv = "multi_plot" if CONFIG["IS_MULTI_FILES"] else search_for_export_csv()
-    plotter(chosen_csv, CONFIG["PLOT_TYPES"][args.plot_type]["export_file_name"], CONFIG["DEFAULT_PARAMETERS"], args.plot_type)
+    
+    # Update parameters based on the CSV file
+    parameters = CONFIG["DEFAULT_PARAMETERS"].copy()
+    parameters.update(extract_parameters_by_file_name(chosen_csv))
+    
+    plotter(chosen_csv, CONFIG["PLOT_TYPES"][args.plot_type]["export_file_name"], parameters, args.plot_type)
