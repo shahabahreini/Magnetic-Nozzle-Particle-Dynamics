@@ -343,7 +343,9 @@ The 2D simulation models particle motion in **cylindrical coordinates** (`ρ`, `
 
 - **Equation of Motion for `ρ` and `z`**:
 
-   ![equation](https://latex.codecogs.com/png.latex?%5Cfrac%7Bd%5E2%20%5Crho%7D%7Bdt%5E2%7D%2C%20%5Cfrac%7Bd%5E2%20z%7D%7Bdt%5E2%7D)
+```math
+\frac{d^2 \rho}{dt^2}, \frac{d^2 z}{dt^2}
+```
 
    These describe the particle's motion in radial and vertical directions under the influence of the electromagnetic fields.
 
