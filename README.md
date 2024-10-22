@@ -1,6 +1,6 @@
 # Particle Dynamics in Electromagnetic Fields Simulation
 
-This project involves simulating particle dynamics in electromagnetic fields using Julia for the core numerical computations and Python for visualization and data analysis. It tracks particle motion under specific initial conditions and visualizes the system's behavior over time using 2D and 3D plots.
+This project involves simulating particle dynamics in electromagnetic fields using Julia for the core numerical computations and Python for visualization and data analysis. It tracks particle motion under specific initial conditions and visualizes the system's behavior over time using various plotting techniques.
 
 ## Table of Contents
 1. [Project Overview](#project-overview)
@@ -15,19 +15,26 @@ This project involves simulating particle dynamics in electromagnetic fields usi
     1. [2D Plotting (`plotter_2D.py`)](#2d-plotting-options-plotter_2dpy)
     2. [3D Plotting (`plotter_3D.py`)](#3d-plotting-options-plotter_3dpy)
     3. [Energy and Momentum Conservation Plotter](#energy-and-momentum-conservation)
+    4. [Electric Field Plotter (`plotter_electricField.py`)](#electric-field-plotter-plotter_electricfieldpy)
+    5. [Magnetic Field Plotter (`plotter_magneticField.py`)](#magnetic-field-plotter-plotter_magneticfieldpy)
+    6. [Violation Plotter (`plotter_violation.py`)](#violation-plotter-plotter_violationpy)
+    7. [Velocity Components Plotter (`plotter_velocity_components.py`)](#velocity-components-plotter-plotter_velocity_componentspy)
 5. [Peak Finder and Adiabatic Invariant Measurement (`peakfinder.py`)](#peak-finder-and-adiabatic-invariant-measurement-peakfinderpy)
 6. [Configuration](#configuration)
 7. [Physics and Equations of Motion](#physics-and-equations-of-motion)
 8. [Contributors](#contributors)
+
 ---
 
 ## Project Overview
 
-This project simulates the behavior of particles in electromagnetic fields. The simulation integrates particle equations of motion and visualizes the results using both 2D and 3D plots. The features include:
+This project simulates the behavior of particles in electromagnetic fields. The simulation integrates particle equations of motion and visualizes the results using various plotting techniques. The features include:
 
 - **Particle trajectory computation** in an electromagnetic field.
 - **Energy and momentum conservation** visualizations.
 - **2D and 3D plot generation**.
+- **Electric and magnetic field visualizations**.
+- **Velocity component analysis**.
 - **Peak detection** in particle motion data.
 
 ---
@@ -100,7 +107,27 @@ Once the simulation is complete, use the following Python scripts to visualize t
 
 - **Energy and Momentum Visualization**:
     ```bash
-    python plotter_energy_momentum_conservasion.py
+    python plotter_conservation.py
+    ```
+
+- **Electric Field Visualization**:
+    ```bash
+    python plotter_electricField.py
+    ```
+
+- **Magnetic Field Visualization**:
+    ```bash
+    python plotter_magneticField.py
+    ```
+
+- **Violation Analysis**:
+    ```bash
+    python plotter_violation.py
+    ```
+
+- **Velocity Components Analysis**:
+    ```bash
+    python plotter_velocity_components.py
     ```
 
 - **Peak Detection**:
@@ -178,13 +205,81 @@ This script visualizes the conservation of energy and momentum during the simula
 #### Usage:
 
 ```bash
-python plotter_energy_momentum_conservasion.py
+python plotter_conservation.py
 ```
 
 #### Example Output:
 Example output visualizing energy conservation:
 
 ![Example Plot](screenshots/energy_conservation_screenshot.png)
+
+---
+
+### Electric Field Plotter (`plotter_electricField.py`)
+
+This script generates various plots for electric field distributions.
+
+#### Features:
+- 2D streamplot of electric field
+- 3D quiver plot of electric field vectors
+- 2D and 3D contour plots of electric field magnitude
+- Customizable plot parameters and output options
+
+#### Usage:
+```bash
+python plotter_electricField.py
+```
+
+---
+
+### Magnetic Field Plotter (`plotter_magneticField.py`)
+
+Creates plots for magnetic field distributions and vector fields.
+
+#### Features:
+- 2D streamplot of magnetic field lines
+- 3D quiver plot of magnetic field vectors
+- 2D and 3D contour plots of magnetic field strength
+- 2D quiver plot of magnetic field vectors
+- Customizable plot parameters and output options
+
+#### Usage:
+```bash
+python plotter_magneticField.py
+```
+
+---
+
+### Violation Plotter (`plotter_violation.py`)
+
+Analyzes and plots the relative change ratio of magnetic moment.
+
+#### Features:
+- Calculates and plots Δ(μ)/μ against time
+- Includes moving average calculation
+- Identifies violation points where Δ(μ)/μ exceeds a threshold
+- Interactive plot with customizable parameters
+
+#### Usage:
+```bash
+python plotter_violation.py
+```
+
+---
+
+### Velocity Components Plotter (`plotter_velocity_components.py`)
+
+Plots parallel and perpendicular velocity components against time.
+
+#### Features:
+- Plots v_parallel and v_perpendicular against time
+- Customizable plot styling and labels
+- Option to add subtitle for additional information
+
+#### Usage:
+```bash
+python plotter_velocity_components.py
+```
 
 ---
 
@@ -294,7 +389,6 @@ The guiding center approximation can also be employed for specific scenarios.
    z^2\right)}{\left(R^2+z^2\right)^2}
     ```   
 These equations describe the magnetic flux function and its derivatives in the radial and vertical directions, which are crucial for understanding the magnetic field structure in the simulation.
-
 
 ---
 
