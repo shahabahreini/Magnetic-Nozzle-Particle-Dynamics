@@ -9,3 +9,10 @@ scipy
 seaborn
 colorama
 pyyaml
+mayavi
+pyvista
+holoviews
+datashader
+bokeh
+vtk
+PyQt5
