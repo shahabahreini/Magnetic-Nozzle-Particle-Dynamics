@@ -9,9 +9,15 @@ from rich import print
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich.prompt import Prompt, IntPrompt
+from rich.prompt import Prompt, IntPrompt, Confirm
 from rich.progress import Progress
-from lib import search_for_export_csv, extract_parameters_by_file_name, list_csv_files, list_folders
+from rich import box
+from lib import (
+    search_for_export_csv,
+    extract_parameters_by_file_name,
+    list_csv_files,
+    list_folders,
+)
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 
 console = Console()
@@ -135,7 +141,18 @@ def plot_2d(ax, df, x_param, y_param, time, color_map, norm, label):
     ax.set_ylabel(get_axis_label(y_param))
 
 
-def plot_3d(ax, df, coord_system, time, color_map, norm, label):
+def plot_3d(
+    ax,
+    df,
+    coord_system,
+    time,
+    color_map,
+    norm,
+    label,
+    use_scatter,
+    use_time_color,
+    show_projections,
+):
     """Plot 3D scatter and line plots with projections."""
     if coord_system == "cylindrical":
         x, y, z = df["rho"], df["phi"], df["z"]
@@ -144,13 +161,21 @@ def plot_3d(ax, df, coord_system, time, color_map, norm, label):
         x, y, z = cylindrical_to_cartesian(df["rho"], df["phi"], df["z"])
         x_label, y_label, z_label = r"$x$", r"$y$", r"$z$"
 
-    ax.scatter(x, y, z, c=time, cmap=color_map, norm=norm, s=2)
-    ax.plot(x, y, z, alpha=0.3, label=label)
+    if use_scatter and use_time_color:
+        ax.scatter(x, y, z, c=time, cmap=color_map, norm=norm, s=2)
+    elif use_scatter:
+        ax.scatter(x, y, z, c="b", s=2)
 
-    # Add projections
-    ax.plot(x, y, min(z), "k--", alpha=0.2)
-    ax.plot(x, [min(y)] * len(x), z, "k--", alpha=0.2)
-    ax.plot([min(x)] * len(y), y, z, "k--", alpha=0.2)
+    if use_time_color:
+        ax.plot(x, y, z, c=plt.cm.viridis(norm(time)), alpha=0.3, label=label)
+    else:
+        ax.plot(x, y, z, c="b", alpha=0.3, label=label)
+
+    # Add projections if requested
+    if show_projections:
+        ax.plot(x, y, min(z), "k--", alpha=0.2)
+        ax.plot(x, [min(y)] * len(x), z, "k--", alpha=0.2)
+        ax.plot([min(x)] * len(y), y, z, "k--", alpha=0.2)
 
     # Set axis labels
     ax.set_xlabel(x_label)
@@ -180,7 +205,7 @@ def set_axis_properties(ax, plot_type, x_param, y_param):
 def set_3d_equal_aspect(ax, x, y, z):
     """Set equal aspect ratio for 3D plot."""
     max_range = (
-            np.array([x.max() - x.min(), y.max() - y.min(), z.max() - z.min()]).max() / 2.0
+        np.array([x.max() - x.min(), y.max() - y.min(), z.max() - z.min()]).max() / 2.0
     )
     mid_x, mid_y, mid_z = [(x.max() + x.min()) * 0.5 for x in (x, y, z)]
     ax.set_xlim(mid_x - max_range, mid_x + max_range)
@@ -201,7 +226,9 @@ def add_parameter_textbox(ax_params, common_params, varying_params):
 
     # Add varying parameters
     param_text += "\nVarying Parameters:\n"
-    unique_varying_params = set(param.split('=')[0] for params in varying_params.values() for param in params)
+    unique_varying_params = set(
+        param.split("=")[0] for params in varying_params.values() for param in params
+    )
     for param in unique_varying_params:
         param_text += rf"${get_axis_label(param, True)}$" + "\n"
 
@@ -238,7 +265,7 @@ def find_common_and_varying_params(files):
                 varying_params[file].append(f"{get_axis_label(param)}={params[param]}")
 
     # Sort files based on one of the varying parameters (e.g., 'eps')
-    sorted_files = sorted(all_params, key=lambda x: x[1].get('eps', 0))
+    sorted_files = sorted(all_params, key=lambda x: x[1].get("eps", 0))
 
     # Sort varying parameters based on file order
     sorted_varying_params = {file: varying_params[file] for file, _ in sorted_files}
@@ -246,11 +273,23 @@ def find_common_and_varying_params(files):
     return common_params, sorted_varying_params, [file for file, _ in sorted_files]
 
 
-def Plotter(file_list, folder_path, x_param, y_param, plot_type="2d", coord_system="cartesian"):
+def Plotter(
+    file_list,
+    folder_path,
+    x_param,
+    y_param,
+    plot_type="2d",
+    coord_system="cartesian",
+    use_scatter=True,
+    use_time_color=True,
+    show_projections=False,
+):
     """Main plotting function."""
     fig, ax, ax_params = setup_plot(plot_type)
 
-    common_params, varying_params, sorted_files = find_common_and_varying_params(file_list)
+    common_params, varying_params, sorted_files = find_common_and_varying_params(
+        file_list
+    )
 
     with Progress() as progress:
         task = progress.add_task("[cyan]Processing files...", total=len(sorted_files))
@@ -265,21 +304,38 @@ def Plotter(file_list, folder_path, x_param, y_param, plot_type="2d", coord_syst
             color_map = plt.cm.viridis
 
             label = ", ".join(
-                [f"${GREEK_SYMBOLS.get(param.split('=')[0], param.split('=')[0])}={param.split('=')[1]}$" for param in
-                 varying_params[fname]])
+                [
+                    f"${GREEK_SYMBOLS.get(param.split('=')[0], param.split('=')[0])}={param.split('=')[1]}$"
+                    for param in varying_params[fname]
+                ]
+            )
 
             if plot_type == "2d":
                 plot_2d(ax, df, x_param, y_param, time, color_map, norm, label)
             else:
-                x, y, z = plot_3d(ax, df, coord_system, time, color_map, norm, label)
+                x, y, z = plot_3d(
+                    ax,
+                    df,
+                    coord_system,
+                    time,
+                    color_map,
+                    norm,
+                    label,
+                    use_scatter,
+                    use_time_color,
+                    show_projections,
+                )
 
             progress.update(task, advance=1)
 
-    # Add colorbar
-    cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])
-    cbar = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=color_map), cax=cbar_ax)
-    cbar.set_label("Time", rotation=270, labelpad=15)
-    cbar.ax.tick_params(labelsize=8)
+    # Add colorbar only if time coloring is used
+    if use_time_color:
+        cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])
+        cbar = plt.colorbar(
+            plt.cm.ScalarMappable(norm=norm, cmap=color_map), cax=cbar_ax
+        )
+        cbar.set_label("Time", rotation=270, labelpad=15)
+        cbar.ax.tick_params(labelsize=8)
 
     set_axis_properties(ax, plot_type, x_param, y_param)
     ax.tick_params(axis="both", which="major", labelsize=8)
@@ -310,90 +366,119 @@ def Plotter(file_list, folder_path, x_param, y_param, plot_type="2d", coord_syst
     plt.show()
 
 
+def validate_parameter(df, param):
+    if param not in df.columns:
+        console.print(
+            f"[red]Error: '{param}' is not a valid parameter. Please choose from the available parameters.[/red]"
+        )
+        return False
+    return True
+
+
 def main():
-    """Main function to run the interactive plotter."""
+    console = Console()
     console.print(
-        Panel.fit("[bold cyan]Welcome to the Interactive Plotter[/bold cyan]")
+        Panel("Welcome to the Particle Trajectory Plotter", style="bold magenta")
     )
 
-    # Ask the user for the mode: folder selection or single file from current directory
-    console.print("[bold]Select mode of operation:[/bold]")
-    console.print("1. Multi-file mode")
-    console.print("2. Single-file mode")
-    mode_choice = IntPrompt.ask("Enter your choice", choices=["1", "2"])
+    # Get the folder path
+    folder_path = Prompt.ask("Enter the folder path containing CSV files", default=".")
 
-    # Set the configuration based on the mode choice
-    CONFIG['is_multi_files'] = (mode_choice == 1)
+    # List CSV files in the folder
+    csv_files = list_csv_files(folder_path)
 
-    if CONFIG["is_multi_files"]:
-        # Folder selection mode
-        console.print("[bold]Select a folder containing CSV files:[/bold]")
-        folders = list_folders()
-        folder_choice = IntPrompt.ask("Enter a folder number", choices=[str(i) for i in range(1, len(folders) + 1)])
-        selected_folder = folders[folder_choice - 1]
+    if not csv_files:
+        console.print("[red]No CSV files found in the specified folder.[/red]")
+        return
 
-        folder_path = os.path.join('.', selected_folder)
-        files = list_csv_files(folder_path)
+    # Display available CSV files in a table
+    table = Table(title=f"CSV Files in '{folder_path}'", box=box.ROUNDED)
+    table.add_column("#", style="cyan", no_wrap=True)
+    table.add_column("Filename", style="magenta")
 
-        console.print(
-            "\n[bold]Select files to plot (enter numbers separated by space or press Enter to select all):[/bold]")
-        file_choice = Prompt.ask("Enter file numbers or press Enter")
-        if file_choice:
-            try:
-                chosen_indices = [int(i) - 1 for i in file_choice.split()]
-                selected_files = [files[i] for i in chosen_indices if 0 <= i < len(files)]
-                if not selected_files:
-                    raise ValueError("Invalid file numbers")
-            except ValueError:
-                console.print("[red]Invalid input! Please enter valid file numbers separated by space.[/red]")
-                return
-        else:
-            selected_files = files  # Plot all files if Enter is pressed without input
+    for i, file in enumerate(csv_files, 1):
+        table.add_row(str(i), file)
 
-        console.print("\n[yellow]Listing CSV files in the target folder...[/yellow]")
+    # Ask user to select files
+    selected_indices = Prompt.ask(
+        "Enter the numbers of the files you want to plot (comma-separated, e.g., 1,2,3)",
+        default="1",
+    )
+    selected_indices = [int(i.strip()) - 1 for i in selected_indices.split(",")]
+    selected_files = [csv_files[i] for i in selected_indices]
 
-    else:
-        # Single file selection from the current directory
-        folder_path = os.getcwd()  # Current directory
-        files = list_csv_files(folder_path)
-        file_choice = IntPrompt.ask(
-            "Choose a file (enter a number from the list)",
-            choices=[str(i) for i in range(1, len(files) + 1)],
-        )
-        selected_files = [files[file_choice - 1]]
-
-    console.print("[yellow]Reading CSV file(s)...[/yellow]")
+    # Read the first CSV file to get available parameters
     df = pd.read_csv(os.path.join(folder_path, selected_files[0]))
-    console.print("[green]CSV file(s) loaded successfully![/green]")
+    display_available_parameters(df)
 
-    plot_type = Prompt.ask("Enter plot type", choices=["2d", "3d"], default="2d")
+    # Ask user for plot type
+    plot_type = Prompt.ask(
+        "Enter the plot type (2d for 2D plot, 3d for 3D plot)",
+        choices=["2d", "3d"],
+        default="2d",
+    )
 
+    # Ask for x and y parameters for 2D plot, or coordinate system for 3D plot
     if plot_type == "2d":
-        console.print("\n[bold]Available parameters for plotting:[/bold]")
-        display_available_parameters(df)
-
-        x_index = int(
-            Prompt.ask("Enter the index number for x-axis parameter", default="1")
-        )
-        y_index = int(
-            Prompt.ask("Enter the index number for y-axis parameter", default="2")
-        )
-
-        x_param = df.columns[x_index - 1]
-        y_param = df.columns[y_index - 1]
-
-        console.print(f"[green]Selected x-axis:[/green] [bold]{x_param}[/bold]")
-        console.print(f"[green]Selected y-axis:[/green] [bold]{y_param}[/bold]")
-        coord_system = None
+        while True:
+            x_param = Prompt.ask("Enter the parameter for x-axis (e.g., rho, phi, z)")
+            if validate_parameter(df, x_param):
+                break
+        while True:
+            y_param = Prompt.ask("Enter the parameter for y-axis (e.g., rho, phi, z)")
+            if validate_parameter(df, y_param):
+                break
+        coord_system = "cartesian"
     else:
         coord_system = Prompt.ask(
-            "Enter coordinate system",
+            "Enter the coordinate system (cartesian or cylindrical)",
             choices=["cartesian", "cylindrical"],
             default="cartesian",
         )
         x_param = y_param = None
 
-    Plotter(selected_files, folder_path, x_param, y_param, plot_type, coord_system)
+    # Ask for additional plot options
+    use_scatter = Confirm.ask("Use scatter plot? (y/n)", default=True)
+    use_time_color = Confirm.ask("Use time-based coloring? (y/n)", default=True)
+    show_projections = (
+        Confirm.ask("Show projections? (3D only) (y/n)", default=False)
+        if plot_type == "3d"
+        else False
+    )
+
+    # Generate the plot
+    try:
+        fig, ax = Plotter(
+            selected_files,
+            folder_path,
+            x_param,
+            y_param,
+            plot_type,
+            coord_system,
+            use_scatter,
+            use_time_color,
+            show_projections,
+        )
+
+        if fig is None or ax is None:
+            console.print(
+                "[red]Error: Plotter function returned None. Please check your input parameters.[/red]"
+            )
+            return
+
+        # Save the plot
+        save_path = os.path.join(folder_path, CONFIG["plots_folder"])
+        os.makedirs(save_path, exist_ok=True)
+        save_file = os.path.join(
+            save_path, f"{CONFIG['save_file_name']}{CONFIG['save_file_extension']}"
+        )
+        plt.savefig(save_file, dpi=300, bbox_inches="tight")
+        console.print(f"[green]Plot saved as {save_file}[/green]")
+
+        # Show the plot
+        plt.show()
+    except Exception as e:
+        console.print(f"[red]An error occurred: {str(e)}[/red]")
 
 
 if __name__ == "__main__":

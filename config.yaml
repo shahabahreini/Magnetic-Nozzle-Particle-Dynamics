@@ -5,10 +5,10 @@ show_extremums_peaks: true
 based_on_guiding_center: true
 target_folder_multi_files: "./csv/"
 plots_folder: "plots"
-extremum_of: "drho"
+extremum_of: "rho"
 calculate_integral: true
 calculate_traditional_magneticMoment: true
-show_extremums_peaks: false
+show_extremums_peaks: true
 simulation_parameters:
   eps: 0.0177
   epsphi: 0.0

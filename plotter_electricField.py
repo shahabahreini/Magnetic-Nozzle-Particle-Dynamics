@@ -11,11 +11,11 @@ hv.extension('bokeh')
 pv.global_theme.allow_empty_mesh = True
 
 # Enable or disable specific visualizations
-MATPLOTLIB_2D_STREAM_CONTOUR = True
-MATPLOTLIB_2D_QUIVER = True
-MATPLOTLIB_2D_ELECTRIC_CONTOUR = True
-MATPLOTLIB_2D_POTENTIAL_CONTOUR = True
-MATPLOTLIB_3D_SURFACE = False
+MATPLOTLIB_2D_STREAM_CONTOUR = False
+MATPLOTLIB_2D_QUIVER = False
+MATPLOTLIB_2D_ELECTRIC_CONTOUR = False
+MATPLOTLIB_2D_POTENTIAL_CONTOUR = False
+MATPLOTLIB_3D_SURFACE = True
 PLOTLY_3D_SURFACE = False
 MAYAVI_VECTOR_FIELD = False
 PYVISTA_STREAMLINES = False
@@ -66,98 +66,97 @@ def E_z(R, Z):
 
 # Matplotlib 2D Stream and Contour Plot
 def matplotlib_2d_stream_contour():
-    if MATPLOTLIB_2D_STREAM_CONTOUR:
-        fig, ax = plt.subplots(figsize=(10, 8))
-        R = np.linspace(0.1, 5, 100)
-        Z = np.linspace(0.1, 5, 100)
-        R, Z = np.meshgrid(R, Z)
+    fig, ax = plt.subplots(figsize=(10, 8))
+    R = np.linspace(0.1, 4, 100)
+    Z = np.linspace(0.1, 8, 100)
+    Z, R = np.meshgrid(Z, R)  # Swap the order of Z and R
 
-        E_R_values = E_R(R, Z)
-        E_z_values = E_z(R, Z)
-        E_magnitude = np.sqrt(E_R_values**2 + E_z_values**2)
+    E_R_values = E_R(R, Z)
+    E_z_values = E_z(R, Z)
+    E_magnitude = np.sqrt(E_R_values**2 + E_z_values**2)
 
-        streamplot = ax.streamplot(R, Z, E_R_values, E_z_values, color=E_magnitude, cmap="viridis", linewidth=1.5)
-        potential = Phi(R, Z)
-        contour = ax.contour(R, Z, potential, levels=20, colors="red", linewidths=0.5)
-        
-        equipotential_line = plt.Line2D([0], [0], color="red", lw=0.5, label="Equipotential Lines")
-        electric_field_line = plt.Line2D([0], [0], color="purple", lw=1.5, label="Electric Field Lines")
-        ax.legend(handles=[equipotential_line, electric_field_line], loc="upper right")
+    # Use Z for x-axis and R for y-axis in streamplot and contour
+    streamplot = ax.streamplot(Z, R, E_z_values, E_R_values, color=E_magnitude, cmap="viridis", linewidth=1.5)
+    potential = Phi(R, Z)
+    contour = ax.contour(Z, R, potential, levels=20, colors="red", linewidths=0.5)
+    
+    equipotential_line = plt.Line2D([0], [0], color="red", lw=0.5, label="Equipotential Lines")
+    electric_field_line = plt.Line2D([0], [0], color="purple", lw=1.5, label="Electric Field Lines")
+    ax.legend(handles=[equipotential_line, electric_field_line], loc="upper right")
 
-        plt.colorbar(streamplot.lines, label="Electric field magnitude (V/m)", pad=0.1)
-        ax.set_title("Electric Field (2D Streamplot) with Equipotential Lines")
-        ax.set_xlabel("R (m)")
-        ax.set_ylabel("Z (m)")
-        plt.tight_layout()
-        plt.show()
+    plt.colorbar(streamplot.lines, label="Electric field magnitude (V/m)", pad=0.1)
+    ax.set_title("Electric Field (2D Streamplot) with Equipotential Lines")
+    ax.set_xlabel("Z (m)")  # Change label to Z
+    ax.set_ylabel("R (m)")  # Change label to R
+    plt.tight_layout()
+    plt.show()
+
 
 # Matplotlib 2D Quiver Plot
 def matplotlib_2d_quiver():
-    if MATPLOTLIB_2D_QUIVER:
-        fig, ax = plt.subplots(figsize=(10, 8))
+    fig, ax = plt.subplots(figsize=(10, 8))
 
-        # Dense grid for potential color map
-        R_dense = np.linspace(0.1, 5, 100)
-        Z_dense = np.linspace(0.1, 5, 100)
-        R_dense, Z_dense = np.meshgrid(R_dense, Z_dense)
-        potential = Phi(R_dense, Z_dense)
-        contourf = ax.contourf(R_dense, Z_dense, potential, levels=50, cmap="coolwarm", alpha=0.6)
-        plt.colorbar(contourf, ax=ax, label="Electric Potential (V)")
+    # Dense grid for potential color map (rotated)
+    Z_dense = np.linspace(0.2, 8, 100)
+    R_dense = np.linspace(0.2, 4, 100)
+    Z_dense, R_dense = np.meshgrid(Z_dense, R_dense)
+    potential = Phi(R_dense, Z_dense)
+    contourf = ax.contourf(Z_dense, R_dense, potential, levels=50, cmap="coolwarm", alpha=0.6)
+    plt.colorbar(contourf, ax=ax, label="Electric Potential (V)")
 
-        # Sparse grid for quiver arrows
-        R_sparse = np.linspace(0.3, 5, 30)
-        Z_sparse = np.linspace(0.3, 5, 30)
-        R_sparse, Z_sparse = np.meshgrid(R_sparse, Z_sparse)
-        E_R_values = E_R(R_sparse, Z_sparse)
-        E_z_values = E_z(R_sparse, Z_sparse)
+    # Sparse grid for quiver arrows (rotated)
+    Z_sparse = np.linspace(0.5, 8, 30)
+    R_sparse = np.linspace(0.5, 4, 30)
+    Z_sparse, R_sparse = np.meshgrid(Z_sparse, R_sparse)
+    E_R_values = E_R(R_sparse, Z_sparse)
+    E_z_values = E_z(R_sparse, Z_sparse)
 
-        # Quiver plot for electric field
-        quiver = ax.quiver(R_sparse, Z_sparse, E_R_values, E_z_values, color="black", angles="xy", scale_units="xy", scale=4, alpha=0.5)
+    # Quiver plot for electric field
+    quiver = ax.quiver(Z_sparse, R_sparse, E_z_values, E_R_values, color="black", angles="xy", scale_units="xy", scale=3, alpha=0.5)
 
-        # Create a custom legend entry for Electric Potential Contours using a dummy Line2D object
-        from matplotlib.lines import Line2D
-        contour_legend = Line2D([0], [0], color="black", linestyle="-", linewidth=0.3, label="Electric Equipotential Lines")
-        
+    # Create a custom legend entry for Electric Potential Contours using a dummy Line2D object
+    from matplotlib.lines import Line2D
+    contour_legend = Line2D([0], [0], color="black", linestyle="-", linewidth=0.8, label="Electric Equipotential Lines")
 
-        # Set plot title and labels
-        ax.set_title("Electric Field (2D Quiver Plot) with Electric Potential Color Map")
-        ax.set_xlabel("R (m)")
-        ax.set_ylabel("Z (m)")
+    # Set plot title and labels
+    ax.set_title("Electric Field (2D Quiver Plot) with Electric Potential Color Map")
+    ax.set_xlabel("Z (m)")
+    ax.set_ylabel("R (m)")
 
-        # Add both entries to the legend
-        ax.legend(handles=[contour_legend], loc="upper left")
+    # Add both entries to the legend
+    ax.legend(handles=[contour_legend], loc="upper left")
 
-        plt.tight_layout()
-        plt.show()
+    plt.tight_layout()
+    plt.show()
         
 def matplotlib_2d_potential_contour():
     fig, ax = plt.subplots(figsize=(10, 8))
 
-    # Define grid for contour plot
-    R = np.linspace(0.1, 5, 200)  # Increase resolution for smoother contours
-    Z = np.linspace(-5, 5, 200)
-    R, Z = np.meshgrid(R, Z)
+    # Define grid for contour plot (rotated)
+    Z = np.linspace(0.1, 8, 200)
+    R = np.linspace(0.1, 4, 200)
+    Z, R = np.meshgrid(Z, R)
     potential = Phi(R, Z)
 
     # Plot filled contours
-    contourf = ax.contourf(R, Z, potential, levels=50, cmap="viridis", alpha=0.8)
+    contourf = ax.contourf(Z, R, potential, levels=50, cmap="viridis", alpha=0.8)
     colorbar = plt.colorbar(contourf, ax=ax, label="Electric Potential (V)")
 
     # Overlay contour lines for better visual clarity
-    contours = ax.contour(R, Z, potential, levels=10, colors="black", linewidths=0.5)
+    contours = ax.contour(Z, R, potential, levels=10, colors="black", linewidths=0.5)
 
     # Add labels for contour lines
     ax.clabel(contours, inline=True, fontsize=8, fmt="%.1f V")
 
     # Set plot title and axis labels
     ax.set_title("2D Electric Potential Contour Plot", fontsize=14, weight="bold")
-    ax.set_xlabel("R (m)", fontsize=12)
-    ax.set_ylabel("Z (m)", fontsize=12)
+    ax.set_xlabel("Z (m)", fontsize=12)
+    ax.set_ylabel("R (m)", fontsize=12)
 
     # Set grid and limits for professional look
     ax.grid(visible=True, linestyle="--", color="grey", alpha=0.3)
-    ax.set_xlim(0.1, 5)
-    ax.set_ylim(-5, 5)
+    ax.set_xlim(0.1, 8)
+    ax.set_ylim(0.1, 4)
 
     # Adjust layout for a clean look
     plt.tight_layout()
@@ -167,10 +166,10 @@ def matplotlib_2d_potential_contour():
 def matplotlib_2d_electric_field_contour():
     fig, ax = plt.subplots(figsize=(10, 8))
 
-    # Define grid for contour plot
-    R = np.linspace(0.1, 5, 200)
-    Z = np.linspace(-5, 5, 200)
-    R, Z = np.meshgrid(R, Z)
+    # Define grid for contour plot (rotated)
+    Z = np.linspace(0.1, 8, 200)
+    R = np.linspace(0.1, 4, 200)
+    Z, R = np.meshgrid(Z, R)
 
     # Calculate electric field components and magnitude
     E_R_values = E_R(R, Z)
@@ -178,26 +177,27 @@ def matplotlib_2d_electric_field_contour():
     E_magnitude = np.sqrt(E_R_values**2 + E_z_values**2)
 
     # Plot filled contours for electric field magnitude
-    contourf = ax.contourf(R, Z, E_magnitude, levels=50, cmap="plasma", alpha=0.8)
+    contourf = ax.contourf(Z, R, E_magnitude, levels=50, cmap="plasma", alpha=0.8)
     colorbar = plt.colorbar(contourf, ax=ax, label="Electric Field Magnitude (V/m)")
 
     # Overlay contour lines for electric field magnitude
-    contours = ax.contour(R, Z, E_magnitude, levels=10, colors="black", linewidths=0.5)
+    contours = ax.contour(Z, R, E_magnitude, levels=10, colors="black", linewidths=0.5)
     ax.clabel(contours, inline=True, fontsize=8, fmt="%.1f V/m")
 
     # Set plot title and axis labels
     ax.set_title("2D Electric Field Magnitude Contour Plot", fontsize=14, weight="bold")
-    ax.set_xlabel("R (m)", fontsize=12)
-    ax.set_ylabel("Z (m)", fontsize=12)
+    ax.set_xlabel("Z (m)", fontsize=12)
+    ax.set_ylabel("R (m)", fontsize=12)
 
     # Set grid and limits for professional look
     ax.grid(visible=True, linestyle="--", color="grey", alpha=0.3)
-    ax.set_xlim(0.1, 5)
-    ax.set_ylim(-5, 5)
+    ax.set_xlim(0.1, 8)
+    ax.set_ylim(0.1, 4)
 
     # Adjust layout for a clean look
     plt.tight_layout()
     plt.show()
+
     
     
 # Matplotlib 3D Surface Plot

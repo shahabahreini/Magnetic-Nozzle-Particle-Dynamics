@@ -1,10 +1,10 @@
-theta_0 = π/10
+theta_0 = π/20
 alpha_0 = π/2 
 beta_0 = 0
-phi_0 = π/2
-epsilon = 0.0005
+phi_0 = 0
+epsilon = 0.00005
 eps_phi = 0.0
-kappa = 0.0
+kappa = 1.0
 delta_star = 1.0
 number_of_trajectories = 10000
-time_end = 50000.0
+time_end = 200

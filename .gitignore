@@ -143,3 +143,5 @@ dmypy.json
 .pyre/
 
 .DS_Store
+initial_conditions.txt
+initial_conditions.txt
