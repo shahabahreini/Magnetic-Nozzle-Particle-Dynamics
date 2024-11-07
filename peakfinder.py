@@ -8,10 +8,8 @@ import lib
 import numpy as np
 import datetime
 
-# Import argreletextrema
-import numpy as np
-from scipy.signal import argrelextrema, find_peaks_cwt, find_peaks
-from scipy.misc import electrocardiogram
+# Import necessary libraries
+from scipy.signal import argrelextrema
 from findpeaks import findpeaks
 import yaml
 from plotter_violation import load_and_calculate_variation
@@ -31,16 +29,16 @@ class Configuration:
         self.based_on_guiding_center = self.config["based_on_guiding_center"]
         self.calculate_integral = self.config["calculate_integral"]
         self.calculate_traditional_magneticMoment = self.config[
-            "calculate_traditional_magneticMoment"]
-        self.show_extremums_peaks = self.config[
-            "show_extremums_peaks"]
+            "calculate_traditional_magneticMoment"
+        ]
+        self.show_extremums_peaks = self.config["show_extremums_peaks"]
 
     def load_config(self, config_path):
-        with open(config_path, 'r') as config_file:
+        with open(config_path, "r") as config_file:
             return yaml.safe_load(config_file)
 
 
-config = Configuration('config.yaml')
+config = Configuration("config.yaml")
 
 # Use values from the config file
 save_file_name = config.save_file_name
@@ -56,11 +54,11 @@ show_extremums_peaks = config.show_extremums_peaks
 
 
 def plot_extremums(results):
-    df = results['df']
-    plt.plot(df['x'], df['y'], label=r'$V_X$')
-    plt.plot(df['x'][df['peak']], df['y'][df['peak']], 'rx', label=r'peak')
-    plt.xlabel('Steps (DataPoint Index)')
-    plt.ylabel(r'$V_X$')
+    df = results["df"]
+    plt.plot(df["x"], df["y"], label=r"$V_X$")
+    plt.plot(df["x"][df["peak"]], df["y"][df["peak"]], "rx", label=r"peak")
+    plt.xlabel("Steps (DataPoint Index)")
+    plt.ylabel(r"$V_X$")
     plt.legend()
     plt.show()
 
@@ -94,82 +92,152 @@ def peakfinder_(X, show_plot=True):
     # Plot
     if show_plot:
         plot_extremums(results)
-        fp.plot(xlabel='Steps (DataPoint Index)', ylabel=r'$V_X$')
+        fp.plot(xlabel="Steps (DataPoint Index)", ylabel=r"$V_X$")
         fp = findpeaks(method="topology", lookahead=1)
-        fp.plot(xlabel='Steps (DataPoint Index)', ylabel=r'$V_X$')
+        fp.plot(xlabel="Steps (DataPoint Index)", ylabel=r"$V_X$")
         fp.plot_persistence()
 
     return peak_idx
 
 
+def angular_momentum_calculator_cylindricalCoordinates(df_):
+    R, z, vel_phi = df_["rho"], df_["z"], df_["rho"] * df_["dphi"]
+    psi = z / np.sqrt(R**2 + z**2)
+    return vel_phi * R - psi
+
+
+def omega_squared(z, l0):
+    return 4 * (3 / 4 * l0 + 1) / z**4
+
+
+def adiabatic_condition(z, dz_dt, l0):
+    omega = np.sqrt(omega_squared(z, l0))
+    return np.abs(dz_dt / z) / omega
+
+
+def calculate_adiabatic_condition(df):
+    z = df["z"].values
+    t = df["timestamp"].values
+    dz_dt = np.gradient(z, t)
+    l0 = angular_momentum_calculator_cylindricalCoordinates(df)
+    return adiabatic_condition(z, dz_dt, l0), dz_dt
+
+
 def plotter(path_, fname_):
     global parameter_dict
 
-    # Initialize the plot before processing files
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(14, 9))
 
     plot_data = []
+    adiabatic_data = []
 
     if is_multi_files:
-        path_ = os.path.join(os.path.dirname(__file__),
-                             target_folder_multi_files)
+        path_ = os.path.join(os.path.dirname(__file__), target_folder_multi_files)
         filelst = os.listdir(path_)
     else:
         path_ = ""
         filelst = [fname_ + ".csv"]
-
+    print(filelst)
     for fname in filelst:
+        # Ensure the file is read correctly
+        if not is_multi_files:
+            file_path = os.path.join(fpath, fname)
+        else:
+            file_path = os.path.join(path_, fname)
+
+        # Check if file exists
+        if not os.path.exists(file_path):
+            continue
+
         df = lib.read_exported_csv_2Dsimulation(path_, fname)
         varibale_to_find_peaks_with = df[config.extremum_of]
 
-        peak_idxx = peakfinder_(
-            varibale_to_find_peaks_with, show_extremums_peaks)
+        peak_idxx = peakfinder_(varibale_to_find_peaks_with, show_extremums_peaks)
 
         y_axis_data = lib.adiabtic_calculator(df["drho"], df["rho"], peak_idxx)
         x_axis_data = [df["timestamp"].tolist()[i] for i in peak_idxx[1:]]
 
         parameter_dict = extract_parameters_by_file_name(fname)
+        eps = parameter_dict.get("eps", "N/A")
 
-        eps = parameter_dict["eps"]
+        # Calculate adiabatic condition and growth rate
+        adiabatic_cond, dz_dt = calculate_adiabatic_condition(df)
+        growth_rate = np.gradient(adiabatic_cond, df["timestamp"].values)
 
-        # Collect data for sorting
         plot_data.append((eps, x_axis_data, y_axis_data, fname))
-        
-    # np.savetxt("integral2.csv", np.array(y_axis_data), delimiter=",")
-    # load_and_calculate_variation(y_axis_data, x_axis_data)
-    
-    # Sort the plot data by epsilon in descending order
-    plot_data.sort(reverse=True, key=lambda x: x[0])
+        adiabatic_data.append(
+            (eps, df["timestamp"].values, adiabatic_cond, growth_rate)
+        )
 
-    # Plotting after sorting
+    # Sort data for plotting
+    plot_data.sort(reverse=True, key=lambda x: x[0])
+    adiabatic_data.sort(reverse=True, key=lambda x: x[0])
+
+    # Create two subplots
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 9))
+
+    # Plot 1: Original plot
     for eps, x_axis_data, y_axis_data, fname in plot_data:
-        plt.plot(
+        ax1.plot(
             x_axis_data,
             y_axis_data,
             marker="o",
             markerfacecolor="#344e41",
             markersize=3,
-            label=fr"$\epsilon = {eps}$"
+            label=rf"$\epsilon = {eps}$",
         )
 
-    plt.rcParams["figure.dpi"] = 150
-    plt.ylabel(r"J=$\oint v_{x} \, \mathrm{d}x$")
-    plt.xlabel(r"$\tau$")
-    subtitle = "Adiabatic invariant\n" + r"J=$\oint v_{x}\,\mathrm{d}x$"
-    plt.suptitle(
-        subtitle,
-        fontsize=12
+    ax1.set_ylabel(r"J=$\oint v_{x} \, \mathrm{d}x$")
+    ax1.set_xlabel(r"$\tau$")
+    ax1.set_title("Adiabatic invariant\n" + r"J=$\oint v_{x}\,\mathrm{d}x$")
+    ax1.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+
+    # Plot 2: Adiabatic condition and growth rate
+    for eps, t, adiabatic_cond, growth_rate in adiabatic_data:
+        ax2.plot(t, adiabatic_cond, label=rf"$\epsilon = {eps}$")
+        ax2.plot(
+            t, growth_rate, linestyle="--", label=rf"Growth Rate $\epsilon = {eps}$"
+        )
+
+    # Add shaded tolerance regions
+    ax2.axhspan(
+        0, 0.001, facecolor="green", alpha=0.2, label="Highly Adiabatic (<0.001)"
     )
-    # Move the legend to the right of the plot
-    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    ax2.axhspan(
+        0.001,
+        0.01,
+        facecolor="yellow",
+        alpha=0.2,
+        label="Moderately Adiabatic (0.001-0.01)",
+    )
+    ax2.axhspan(
+        0.01,
+        0.1,
+        facecolor="orange",
+        alpha=0.2,
+        label="Approaching Breakdown (0.01-0.1)",
+    )
+    ax2.axhspan(0.1, 1, facecolor="red", alpha=0.2, label="Non-Adiabatic (>0.1)")
+
+    # Add horizontal lines for visual markers
+    ax2.axhline(y=1, color="r", linestyle="--", label="Adiabatic Critical Limit")
+    ax2.axhline(y=0.1, color="orange", linestyle="--", label="Approaching Breakdown")
+    ax2.axhline(y=0.01, color="y", linestyle="--", label="Moderately Adiabatic")
+    ax2.axhline(y=0.001, color="g", linestyle="--", label="Highly Adiabatic")
+
+    ax2.set_yscale("log")
+    ax2.set_xlabel(r"$\tau$")
+    ax2.set_ylabel(r"$|\dot{z}| / (z \omega)$")
+    ax2.set_title("Adiabatic Condition and Growth Rate")
+    ax2.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    ax2.grid(True)
 
     plt.tight_layout()
-    path_to_save = os.path.join(plots_folder, str(
-        save_file_name + save_file_extension))
+    path_to_save = os.path.join(plots_folder, str(save_file_name + save_file_extension))
     plt.savefig(path_to_save, dpi=600)
     path_to_save = os.path.join(plots_folder, str(save_file_name + ".png"))
     plt.savefig(path_to_save, dpi=600)
-    plt.show() 
+    plt.show()
 
 
 def perform_adiabatic_calculations(chosen_csv, auto_scale=True, y_margin=1e-17):
@@ -201,16 +269,27 @@ def perform_adiabatic_calculations(chosen_csv, auto_scale=True, y_margin=1e-17):
         results = peak_finder.fit(data_frame[config.extremum_of])
 
         # Assuming calculate_ad_mio is a comprehensive function handling all necessary plotting
-        X, Y = lib.calculate_ad_mio(data_frame, label=label,
-                                    use_guiding_center=config.based_on_guiding_center, auto_scale=auto_scale, y_margin=y_margin, param_dict=extract_parameters_by_file_name(file_path))
+        X, Y = lib.calculate_ad_mio(
+            data_frame,
+            label=label,
+            use_guiding_center=config.based_on_guiding_center,
+            auto_scale=auto_scale,
+            y_margin=y_margin,
+            param_dict=extract_parameters_by_file_name(file_path),
+        )
 
         return data_frame[config.extremum_of]
 
     # Prepare and sort file data based on 'eps' values from filenames
     file_data = [
-        (extract_parameters_by_file_name(file)["eps"], f'ε = {
-         extract_parameters_by_file_name(file)["eps"]}', os.path.join(csv_directory, file))
-        for file in os.listdir(csv_directory) if file.endswith('.csv')
+        (
+            extract_parameters_by_file_name(file)["eps"],
+            f'ε = {
+         extract_parameters_by_file_name(file)["eps"]}',
+            os.path.join(csv_directory, file),
+        )
+        for file in os.listdir(csv_directory)
+        if file.endswith(".csv")
     ]
     file_data.sort(key=lambda x: x[0])
 
@@ -222,22 +301,24 @@ def perform_adiabatic_calculations(chosen_csv, auto_scale=True, y_margin=1e-17):
             y_data.extend(plot_adiabatic_results(file_path, label))
     else:
         y_data = plot_adiabatic_results(
-            chosen_csv, f'ε={extract_parameters_by_file_name(chosen_csv)["eps"]}')
+            chosen_csv, f'ε={extract_parameters_by_file_name(chosen_csv)["eps"]}'
+        )
 
     # Adjust plot layout to accommodate legend without overlapping plots
-    plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+    plt.legend(loc="upper left", bbox_to_anchor=(1, 1))
     plt.subplots_adjust(right=0.8)
     plt.show()
 
 
-if not is_multi_files:
-    chosen_csv = search_for_export_csv()
-    indivisual_file_names_to_read = [chosen_csv]
-else:
-    chosen_csv = "multi_plot"
+if __name__ == "__main__":
+    if not is_multi_files:
+        chosen_csv = search_for_export_csv()
+        chosen_csv = os.path.basename(chosen_csv).replace(".csv", "")
+    else:
+        chosen_csv = "multi_plot"
 
-if config.calculate_integral:
-    plotter(fpath, chosen_csv.replace(".csv", ""))
+    if config.calculate_integral:
+        plotter(fpath, chosen_csv)
 
-if config.calculate_traditional_magneticMoment:
-    perform_adiabatic_calculations(chosen_csv)
+    if config.calculate_traditional_magneticMoment:
+        perform_adiabatic_calculations(chosen_csv)

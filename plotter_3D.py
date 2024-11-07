@@ -409,17 +409,17 @@ def main():
 
     # Read the first CSV file to get available parameters
     df = pd.read_csv(os.path.join(folder_path, selected_files[0]))
-    display_available_parameters(df)
 
     # Ask user for plot type
     plot_type = Prompt.ask(
         "Enter the plot type (2d for 2D plot, 3d for 3D plot)",
         choices=["2d", "3d"],
-        default="2d",
+        default="3d",
     )
 
     # Ask for x and y parameters for 2D plot, or coordinate system for 3D plot
     if plot_type == "2d":
+        display_available_parameters(df)
         while True:
             x_param = Prompt.ask("Enter the parameter for x-axis (e.g., rho, phi, z)")
             if validate_parameter(df, x_param):
@@ -438,8 +438,8 @@ def main():
         x_param = y_param = None
 
     # Ask for additional plot options
-    use_scatter = Confirm.ask("Use scatter plot? (y/n)", default=True)
-    use_time_color = Confirm.ask("Use time-based coloring? (y/n)", default=True)
+    use_scatter = Confirm.ask("Use scatter plot? (y/n)", default=False)
+    use_time_color = Confirm.ask("Use time-based coloring? (y/n)", default=False)
     show_projections = (
         Confirm.ask("Show projections? (3D only) (y/n)", default=False)
         if plot_type == "3d"
