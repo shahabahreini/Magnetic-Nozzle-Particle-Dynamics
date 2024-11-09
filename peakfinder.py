@@ -126,7 +126,7 @@ def calculate_adiabatic_condition(df):
 def plotter(path_, fname_):
     global parameter_dict
 
-    plt.figure(figsize=(14, 9))
+    # plt.figure(figsize=(16, 8.5))
 
     plot_data = []
     adiabatic_data = []
@@ -137,16 +137,18 @@ def plotter(path_, fname_):
     else:
         path_ = ""
         filelst = [fname_ + ".csv"]
-    print(filelst)
+
     for fname in filelst:
         # Ensure the file is read correctly
-        if not is_multi_files:
+        if is_multi_files:
             file_path = os.path.join(fpath, fname)
         else:
             file_path = os.path.join(path_, fname)
 
         # Check if file exists
         if not os.path.exists(file_path):
+            print(file_path)
+            print("Shahab")
             continue
 
         df = lib.read_exported_csv_2Dsimulation(path_, fname)
@@ -174,7 +176,7 @@ def plotter(path_, fname_):
     adiabatic_data.sort(reverse=True, key=lambda x: x[0])
 
     # Create two subplots
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 9))
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 8.5))
 
     # Plot 1: Original plot
     for eps, x_axis_data, y_axis_data, fname in plot_data:
