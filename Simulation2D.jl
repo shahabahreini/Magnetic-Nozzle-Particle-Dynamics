@@ -97,7 +97,7 @@ end
 	- Exports the solution data to a CSV file.
 """
 function SolvingtheProblem(CylindricalProblem, du0, u0, tspan)
-    problem = SecondOrderODEProblem(CylindricalProblem, du0, u0, tspan)
+    problem = SecondOrderODEProblem{true}(CylindricalProblem, du0, u0, tspan, SciMLBase.NullParameters())
     sol = solve(problem, Feagin14(), reltol=1e-35, abstol=1e-40)
 
     # Extract the solved position values

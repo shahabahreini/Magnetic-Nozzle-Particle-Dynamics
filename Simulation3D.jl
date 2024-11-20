@@ -94,11 +94,11 @@ end
 # Modify the SolvingtheProblem function to handle extended vectors
 function SolvingtheProblem(CylindricalProblem!, du0, u0, tspan)
     # Ensure initial condition vectors are correctly sized
-    extended_du0 = vcat(du0, zeros(3))  # Add zeros for guiding center velocities
-    extended_u0 = vcat(u0, zeros(3))    # Add zeros for guiding center positions
+    # extended_du0 = vcat(du0, zeros(3))  # Add zeros for guiding center velocities
+    # extended_u0 = vcat(u0, zeros(3))    # Add zeros for guiding center positions
 
-    problem = SecondOrderODEProblem(CylindricalProblem!, du0, u0, tspan)
-    sol = solve(problem, Feagin14(), reltol = 1e-35, abstol = 1e-40)
+    problem = SecondOrderODEProblem{true}(CylindricalProblem!, du0, u0, tspan, SciMLBase.NullParameters())
+    sol = solve(problem, Feagin14(), reltol=1e-35, abstol=1e-40)
     exportData(sol, tspan)
     return sol
 end

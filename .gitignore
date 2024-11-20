@@ -145,3 +145,7 @@ dmypy.json
 .DS_Store
 initial_conditions.txt
 initial_conditions.txt
+
+.vscode/settings.json
+
+changes.txt

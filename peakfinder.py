@@ -13,6 +13,7 @@ from scipy.signal import argrelextrema
 from findpeaks import findpeaks
 import yaml
 from plotter_violation import load_and_calculate_variation
+from matplotlib import patheffects
 
 
 # ---------------------------------- Config ---------------------------------- #
@@ -112,7 +113,7 @@ def omega_squared(z, l0):
 
 def adiabatic_condition(z, dz_dt, l0):
     omega = np.sqrt(omega_squared(z, l0))
-    return np.abs(dz_dt / z) / omega
+    return np.abs(dz_dt / z) / (omega / 2 * np.pi)
 
 
 def calculate_adiabatic_condition(df):
@@ -123,10 +124,37 @@ def calculate_adiabatic_condition(df):
     return adiabatic_condition(z, dz_dt, l0), dz_dt
 
 
-def plotter(path_, fname_):
-    global parameter_dict
+def calculate_adiabatic_condition_electric(df, epsilon_phi, K=5):
+    print(epsilon_phi)
+    # Extract z and timestamp from the dataframe
+    z = df["z"].values
+    t = df["timestamp"].values
 
-    # plt.figure(figsize=(16, 8.5))
+    # Calculate dz/dt using numerical differentiation
+    dz_dt = np.gradient(z, t)
+
+    # Calculate the generalized angular momentum l0
+    l0 = angular_momentum_calculator_cylindricalCoordinates(df)
+
+    # Calculate A and B constants
+    A = (0.75 * l0) + 1.0
+    B = epsilon_phi * K
+
+    # Calculate omega and its derivative
+    omega = np.sqrt(2) * np.sqrt(A + B * z**2) / z**2
+    domega_dt = np.gradient(omega, t)
+
+    # Calculate the adiabatic condition
+    # Compute the term inside the absolute value
+    term1 = (B * z) / (A + B * z**2)
+    term2 = -2.0 / z
+    adiabatic_condition_value = np.abs((term1 + term2) * dz_dt)
+
+    return adiabatic_condition_value, dz_dt
+
+
+def plotter(path_, fname_, show_growth_rate=False):  # Added show_growth_rate parameter
+    global parameter_dict
 
     plot_data = []
     adiabatic_data = []
@@ -139,16 +167,14 @@ def plotter(path_, fname_):
         filelst = [fname_ + ".csv"]
 
     for fname in filelst:
-        # Ensure the file is read correctly
+        # File handling remains the same
         if is_multi_files:
             file_path = os.path.join(fpath, fname)
         else:
             file_path = os.path.join(path_, fname)
 
-        # Check if file exists
         if not os.path.exists(file_path):
-            print(file_path)
-            print("Shahab")
+            print(f"File not found: {file_path}")
             continue
 
         df = lib.read_exported_csv_2Dsimulation(path_, fname)
@@ -162,7 +188,6 @@ def plotter(path_, fname_):
         parameter_dict = extract_parameters_by_file_name(fname)
         eps = parameter_dict.get("eps", "N/A")
 
-        # Calculate adiabatic condition and growth rate
         adiabatic_cond, dz_dt = calculate_adiabatic_condition(df)
         growth_rate = np.gradient(adiabatic_cond, df["timestamp"].values)
 
@@ -178,7 +203,8 @@ def plotter(path_, fname_):
     # Create two subplots
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 8.5))
 
-    # Plot 1: Original plot
+    # Plot 1: Original plot (unchanged)
+    # Inside the plotting loop
     for eps, x_axis_data, y_axis_data, fname in plot_data:
         ax1.plot(
             x_axis_data,
@@ -186,20 +212,69 @@ def plotter(path_, fname_):
             marker="o",
             markerfacecolor="#344e41",
             markersize=3,
-            label=rf"$\epsilon = {eps}$",
+            label=rf"J",
         )
+
+    # Retrieve parameters from the first file
+    first_fname = plot_data[0][3]  # Assuming plot_data is not empty
+    parameters = extract_parameters_by_file_name(first_fname)
+
+    # Mapping parameter keys to LaTeX representations
+    parameter_mapping = {
+        "eps": r"$\epsilon$",
+        "epsphi": r"$\epsilon_\phi$",
+        "kappa": r"$\kappa$",
+        "deltas": r"$\delta_s$",
+        "beta": r"$\beta_0$",
+        "alpha": r"$\alpha_0$",
+        "theta": r"$\theta_0$",
+        "time": r"$\tau$",  # or r'$\tau$' if it's tau
+    }
+
+    # Format parameters into a string with Greek symbols
+    param_text = "\n".join(
+        [
+            f"{parameter_mapping.get(key, key)}: {value}"
+            for key, value in parameters.items()
+        ]
+    )
+
+    # Create shadow text with slight offset
+    shadow_text = ax1.text(
+        0.022,
+        0.94,
+        param_text,
+        transform=ax1.transAxes,
+        fontsize=10,
+        verticalalignment="top",
+        horizontalalignment="left",
+        bbox=dict(boxstyle="round", facecolor="gray", edgecolor="gray", alpha=0.5),
+    )
+
+    # Create main text on top of shadow
+    text = ax1.text(
+        0.02,
+        0.941,
+        param_text,
+        transform=ax1.transAxes,
+        fontsize=10,
+        verticalalignment="top",
+        horizontalalignment="left",
+        bbox=dict(boxstyle="round", facecolor="white", edgecolor="gray", alpha=0.9),
+    )
 
     ax1.set_ylabel(r"J=$\oint v_{x} \, \mathrm{d}x$")
     ax1.set_xlabel(r"$\tau$")
     ax1.set_title("Adiabatic invariant\n" + r"J=$\oint v_{x}\,\mathrm{d}x$")
     ax1.legend(loc="center left", bbox_to_anchor=(1, 0.5))
 
-    # Plot 2: Adiabatic condition and growth rate
+    # Plot 2: Adiabatic condition and growth rate (with toggle)
     for eps, t, adiabatic_cond, growth_rate in adiabatic_data:
-        ax2.plot(t, adiabatic_cond, label=rf"$\epsilon = {eps}$")
-        ax2.plot(
-            t, growth_rate, linestyle="--", label=rf"Growth Rate $\epsilon = {eps}$"
-        )
+        ax2.plot(t, adiabatic_cond, label=rf"$\eta$")
+        if show_growth_rate:  # Only plot growth rate if toggle is True
+            ax2.plot(
+                t, growth_rate, linestyle="--", label=rf"Growth Rate $\epsilon = {eps}$"
+            )
 
     # Add shaded tolerance regions
     ax2.axhspan(
@@ -221,7 +296,7 @@ def plotter(path_, fname_):
     )
     ax2.axhspan(0.1, 1, facecolor="red", alpha=0.2, label="Non-Adiabatic (>0.1)")
 
-    # Add horizontal lines for visual markers
+    # Add horizontal lines
     ax2.axhline(y=1, color="r", linestyle="--", label="Adiabatic Critical Limit")
     ax2.axhline(y=0.1, color="orange", linestyle="--", label="Approaching Breakdown")
     ax2.axhline(y=0.01, color="y", linestyle="--", label="Moderately Adiabatic")
@@ -229,8 +304,10 @@ def plotter(path_, fname_):
 
     ax2.set_yscale("log")
     ax2.set_xlabel(r"$\tau$")
-    ax2.set_ylabel(r"$|\dot{z}| / (z \omega)$")
-    ax2.set_title("Adiabatic Condition and Growth Rate")
+    ax2.set_ylabel(r"$\eta$")
+    ax2.set_title(
+        "Adiabatic Condition" + (" and Growth Rate" if show_growth_rate else "")
+    )
     ax2.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     ax2.grid(True)
 
