@@ -13,7 +13,7 @@ from scipy.signal import argrelextrema
 from findpeaks import findpeaks
 import yaml
 from plotter_violation import load_and_calculate_variation
-from matplotlib import patheffects
+import matplotlib.patches as mpatches
 
 
 # ---------------------------------- Config ---------------------------------- #
@@ -153,7 +153,7 @@ def calculate_adiabatic_condition_electric(df, epsilon_phi, K=5):
     return adiabatic_condition_value, dz_dt
 
 
-def plotter(path_, fname_, show_growth_rate=False):  # Added show_growth_rate parameter
+def plotter(path_, fname_, show_growth_rate=False):
     global parameter_dict
 
     plot_data = []
@@ -200,121 +200,105 @@ def plotter(path_, fname_, show_growth_rate=False):  # Added show_growth_rate pa
     plot_data.sort(reverse=True, key=lambda x: x[0])
     adiabatic_data.sort(reverse=True, key=lambda x: x[0])
 
-    # Create two subplots
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 8.5))
+    # Create two subplots with shared x-axis
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12), sharex=True)
 
-    # Plot 1: Original plot (unchanged)
-    # Inside the plotting loop
+    # Plot 1: Adiabatic invariant
     for eps, x_axis_data, y_axis_data, fname in plot_data:
         ax1.plot(
             x_axis_data,
             y_axis_data,
             marker="o",
-            markerfacecolor="#344e41",
-            markersize=3,
-            label=rf"J",
+            markersize=5,
+            label=rf"$\epsilon = {eps}$",
         )
 
     # Retrieve parameters from the first file
-    first_fname = plot_data[0][3]  # Assuming plot_data is not empty
-    parameters = extract_parameters_by_file_name(first_fname)
+    if plot_data:
+        first_fname = plot_data[0][3]
+        parameters = extract_parameters_by_file_name(first_fname)
 
-    # Mapping parameter keys to LaTeX representations
-    parameter_mapping = {
-        "eps": r"$\epsilon$",
-        "epsphi": r"$\epsilon_\phi$",
-        "kappa": r"$\kappa$",
-        "deltas": r"$\delta_s$",
-        "beta": r"$\beta_0$",
-        "alpha": r"$\alpha_0$",
-        "theta": r"$\theta_0$",
-        "time": r"$\tau$",  # or r'$\tau$' if it's tau
-    }
+        # Mapping parameter keys to LaTeX representations
+        parameter_mapping = {
+            "eps": r"$\epsilon$",
+            "epsphi": r"$\epsilon_\phi$",
+            "kappa": r"$\kappa$",
+            "deltas": r"$\delta_s$",
+            "beta": r"$\beta_0$",
+            "alpha": r"$\alpha_0$",
+            "theta": r"$\theta_0$",
+            "time": r"$\tau$",
+        }
 
-    # Format parameters into a string with Greek symbols
-    param_text = "\n".join(
-        [
+        # Format parameters into a string with Greek symbols
+        param_text = "\n".join(
             f"{parameter_mapping.get(key, key)}: {value}"
             for key, value in parameters.items()
-        ]
-    )
+        )
 
-    # Create shadow text with slight offset
-    shadow_text = ax1.text(
-        0.022,
-        0.94,
-        param_text,
-        transform=ax1.transAxes,
-        fontsize=10,
-        verticalalignment="top",
-        horizontalalignment="left",
-        bbox=dict(boxstyle="round", facecolor="gray", edgecolor="gray", alpha=0.5),
-    )
+        param_text = "Simulation Parameters:\n" + param_text
 
-    # Create main text on top of shadow
-    text = ax1.text(
-        0.02,
-        0.941,
-        param_text,
-        transform=ax1.transAxes,
-        fontsize=10,
-        verticalalignment="top",
-        horizontalalignment="left",
-        bbox=dict(boxstyle="round", facecolor="white", edgecolor="gray", alpha=0.9),
-    )
+        # Add text box with parameters
+        ax1.text(
+            0.02,
+            0.95,
+            param_text,
+            transform=ax1.transAxes,
+            fontsize=12,
+            verticalalignment="top",
+            bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
+        )
 
-    ax1.set_ylabel(r"J=$\oint v_{x} \, \mathrm{d}x$")
-    ax1.set_xlabel(r"$\tau$")
-    ax1.set_title("Adiabatic invariant\n" + r"J=$\oint v_{x}\,\mathrm{d}x$")
-    ax1.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    ax1.set_ylabel(r"$J = \oint v_{x} \, \mathrm{d}x$", fontsize=14)
+    ax1.set_title("Adiabatic Invariant", fontsize=16)
+    ax1.legend(loc="upper right", fontsize=12)
+    ax1.grid(True)
 
-    # Plot 2: Adiabatic condition and growth rate (with toggle)
+    # Plot 2: Adiabatic condition and growth rate
     for eps, t, adiabatic_cond, growth_rate in adiabatic_data:
-        ax2.plot(t, adiabatic_cond, label=rf"$\eta$")
-        if show_growth_rate:  # Only plot growth rate if toggle is True
+        ax2.plot(t, adiabatic_cond, label=rf"$\eta$, $\epsilon = {eps}$")
+        if show_growth_rate:
             ax2.plot(
-                t, growth_rate, linestyle="--", label=rf"Growth Rate $\epsilon = {eps}$"
+                t,
+                growth_rate,
+                linestyle="--",
+                label=rf"Growth Rate, $\epsilon = {eps}$",
             )
 
-    # Add shaded tolerance regions
-    ax2.axhspan(
-        0, 0.001, facecolor="green", alpha=0.2, label="Highly Adiabatic (<0.001)"
-    )
-    ax2.axhspan(
-        0.001,
-        0.01,
-        facecolor="yellow",
-        alpha=0.2,
-        label="Moderately Adiabatic (0.001-0.01)",
-    )
-    ax2.axhspan(
-        0.01,
-        0.1,
-        facecolor="orange",
-        alpha=0.2,
-        label="Approaching Breakdown (0.01-0.1)",
-    )
-    ax2.axhspan(0.1, 1, facecolor="red", alpha=0.2, label="Non-Adiabatic (>0.1)")
+    # Add shaded tolerance regions with increased transparency
+    regions = [
+        (0, 0.001, "Highly Adiabatic (<0.001)", "green"),
+        (0.001, 0.01, "Moderately Adiabatic (0.001-0.01)", "yellow"),
+        (0.01, 0.1, "Approaching Breakdown (0.01-0.1)", "orange"),
+        (0.1, 1, "Non-Adiabatic (>0.1)", "red"),
+    ]
 
-    # Add horizontal lines
-    ax2.axhline(y=1, color="r", linestyle="--", label="Adiabatic Critical Limit")
-    ax2.axhline(y=0.1, color="orange", linestyle="--", label="Approaching Breakdown")
-    ax2.axhline(y=0.01, color="y", linestyle="--", label="Moderately Adiabatic")
-    ax2.axhline(y=0.001, color="g", linestyle="--", label="Highly Adiabatic")
+    # Create custom legend entries for shaded regions
+    custom_patches = []
+    for ymin, ymax, label, color in regions:
+        ax2.axhspan(ymin, ymax, facecolor=color, alpha=0.1)
+        patch = mpatches.Patch(color=color, alpha=0.3, label=label)
+        custom_patches.append(patch)
 
     ax2.set_yscale("log")
-    ax2.set_xlabel(r"$\tau$")
-    ax2.set_ylabel(r"$\eta$")
+    ax2.set_xlabel(r"$\tau$", fontsize=14)
+    ax2.set_ylabel(r"$\eta$", fontsize=14)
     ax2.set_title(
-        "Adiabatic Condition" + (" and Growth Rate" if show_growth_rate else "")
+        "Adiabatic Condition" + (" and Growth Rate" if show_growth_rate else ""),
+        fontsize=16,
     )
-    ax2.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    # Combine existing legend handles with custom patches
+    handles, labels = ax2.get_legend_handles_labels()
+    handles.extend(custom_patches)
+    labels.extend([patch.get_label() for patch in custom_patches])
+    ax2.legend(handles, labels, loc="lower right", fontsize=12)
     ax2.grid(True)
 
     plt.tight_layout()
-    path_to_save = os.path.join(plots_folder, str(save_file_name + save_file_extension))
+    save_file_name = "Adiabatic_Condition_and_Growth_Rate"
+    path_to_save = os.path.join(plots_folder, save_file_name + save_file_extension)
     plt.savefig(path_to_save, dpi=600)
-    path_to_save = os.path.join(plots_folder, str(save_file_name + ".png"))
+    path_to_save = os.path.join(plots_folder, save_file_name + ".png")
     plt.savefig(path_to_save, dpi=600)
     plt.show()
 
