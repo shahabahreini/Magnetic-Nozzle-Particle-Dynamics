@@ -29,6 +29,7 @@ class Configuration:
         self.extremum_of = self.config["extremum_of"]
         self.based_on_guiding_center = self.config["based_on_guiding_center"]
         self.calculate_integral = self.config["calculate_integral"]
+        self.share_x_axis = self.config["SHARE_X_AXIS"]
         self.calculate_traditional_magneticMoment = self.config[
             "calculate_traditional_magneticMoment"
         ]
@@ -51,6 +52,7 @@ parameter_dict = config.parameter_dict
 fpath = config.target_folder
 extremum_of = config.extremum_of
 show_extremums_peaks = config.show_extremums_peaks
+share_x_axis = config.share_x_axis
 # ------------------------------------ --- ----------------------------------- #
 
 
@@ -154,11 +156,60 @@ def calculate_adiabatic_condition_electric(df, epsilon_phi, K=5):
 
 
 def plotter(path_, fname_, show_growth_rate=False):
+    """
+    Enhanced plotter function for visualizing adiabatic conditions and related data.
+
+    Parameters:
+        path_ (str): Base path for data files
+        fname_ (str): Base filename for single file mode
+        show_growth_rate (bool): Whether to show growth rate in the second subplot
+    """
     global parameter_dict
+
+    # Reset to default style and then customize
+    plt.style.use("default")
+
+    # Set custom style parameters
+    plt.rcParams.update(
+        {
+            # Font settings
+            "font.family": "serif",
+            "font.size": 10,
+            "axes.labelsize": 12,
+            "axes.titlesize": 14,
+            "xtick.labelsize": 10,
+            "ytick.labelsize": 10,
+            "legend.fontsize": 10,
+            "figure.titlesize": 16,
+            # Grid settings
+            "axes.grid": True,
+            "grid.alpha": 0.3,
+            "grid.linestyle": "--",
+            "grid.color": "#CCCCCC",
+            # Axis settings
+            "axes.linewidth": 0.5,
+            "axes.edgecolor": "#333333",
+            # Figure settings
+            "figure.dpi": 150,
+            "savefig.dpi": 600,
+            # Legend settings
+            "legend.framealpha": 0.9,
+            "legend.edgecolor": "#CCCCCC",
+            "legend.fancybox": True,
+            # Additional professional settings
+            "axes.spines.top": True,
+            "axes.spines.right": True,
+            "axes.spines.left": True,
+            "axes.spines.bottom": True,
+            "figure.autolayout": True,
+            "axes.axisbelow": True,  # Place grid lines behind plot elements
+        }
+    )
 
     plot_data = []
     adiabatic_data = []
 
+    # File handling
     if is_multi_files:
         path_ = os.path.join(os.path.dirname(__file__), target_folder_multi_files)
         filelst = os.listdir(path_)
@@ -166,8 +217,8 @@ def plotter(path_, fname_, show_growth_rate=False):
         path_ = ""
         filelst = [fname_ + ".csv"]
 
+    # Data collection
     for fname in filelst:
-        # File handling remains the same
         if is_multi_files:
             file_path = os.path.join(fpath, fname)
         else:
@@ -177,11 +228,12 @@ def plotter(path_, fname_, show_growth_rate=False):
             print(f"File not found: {file_path}")
             continue
 
+        # Read and process data
         df = lib.read_exported_csv_2Dsimulation(path_, fname)
         varibale_to_find_peaks_with = df[config.extremum_of]
-
         peak_idxx = peakfinder_(varibale_to_find_peaks_with, show_extremums_peaks)
 
+        # Calculate necessary values
         y_axis_data = lib.adiabtic_calculator(df["drho"], df["rho"], peak_idxx)
         x_axis_data = [df["timestamp"].tolist()[i] for i in peak_idxx[1:]]
 
@@ -196,29 +248,62 @@ def plotter(path_, fname_, show_growth_rate=False):
             (eps, df["timestamp"].values, adiabatic_cond, growth_rate)
         )
 
-    # Sort data for plotting
+    # Sort data for consistent plotting
     plot_data.sort(reverse=True, key=lambda x: x[0])
     adiabatic_data.sort(reverse=True, key=lambda x: x[0])
 
-    # Create two subplots with shared x-axis
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12), sharex=True)
+    # Create figure with enhanced layout
+    fig = plt.figure(figsize=(12, 10), dpi=150)
+
+    if share_x_axis:
+        gs = plt.GridSpec(
+            2, 1, height_ratios=[1, 1], hspace=0.1
+        )  # Reduced hspace for shared axis
+        ax1 = fig.add_subplot(gs[0])
+        ax2 = fig.add_subplot(gs[1], sharex=ax1)  # Share x-axis with first plot
+        # Hide x-label and ticks for the first subplot
+        ax1.tick_params(labelbottom=False)
+        plt.setp(ax1.get_xticklabels(), visible=False)
+    else:
+        gs = plt.GridSpec(
+            2, 1, height_ratios=[1, 1], hspace=0.2
+        )  # More space between plots
+        ax1 = fig.add_subplot(gs[0])
+        ax2 = fig.add_subplot(gs[1])
+
+    # Generate professional color palette
+    colors = plt.cm.viridis(np.linspace(0, 1, len(plot_data)))
 
     # Plot 1: Adiabatic invariant
-    for eps, x_axis_data, y_axis_data, fname in plot_data:
+    for (eps, x_axis_data, y_axis_data, fname), color in zip(plot_data, colors):
         ax1.plot(
             x_axis_data,
             y_axis_data,
             marker="o",
-            markersize=5,
+            markersize=4,
+            color=color,
             label=rf"$\epsilon = {eps}$",
+            linewidth=1.5,
+            markeredgecolor="white",
+            markeredgewidth=0.5,
         )
 
-    # Retrieve parameters from the first file
+    # Enhanced grid styling for both plots
+    for ax in [ax1, ax2]:
+        ax.grid(True, linestyle="--", alpha=0.7, which="major", color="#CCCCCC")
+        ax.grid(True, linestyle=":", alpha=0.4, which="minor", color="#EEEEEE")
+        ax.set_axisbelow(True)
+
+        # Spine styling
+        for spine in ax.spines.values():
+            spine.set_linewidth(0.5)
+            spine.set_color("#333333")
+
+    # Parameter text box
     if plot_data:
         first_fname = plot_data[0][3]
         parameters = extract_parameters_by_file_name(first_fname)
 
-        # Mapping parameter keys to LaTeX representations
         parameter_mapping = {
             "eps": r"$\epsilon$",
             "epsphi": r"$\epsilon_\phi$",
@@ -230,42 +315,34 @@ def plotter(path_, fname_, show_growth_rate=False):
             "time": r"$\tau$",
         }
 
-        # Format parameters into a string with Greek symbols
         param_text = "\n".join(
             f"{parameter_mapping.get(key, key)}: {value}"
             for key, value in parameters.items()
         )
 
-        param_text = "Simulation Parameters:\n" + param_text
-
-        # Add text box with parameters
+        # Enhanced text box
         ax1.text(
             0.02,
             0.95,
-            param_text,
+            "Simulation Parameters:\n" + param_text,
             transform=ax1.transAxes,
-            fontsize=12,
+            fontsize=10,
             verticalalignment="top",
-            bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
+            bbox=dict(
+                boxstyle="round,pad=0.5",
+                facecolor="white",
+                edgecolor="#CCCCCC",
+                alpha=0.9,
+                linewidth=0.5,
+            ),
         )
 
-    ax1.set_ylabel(r"$J = \oint v_{x} \, \mathrm{d}x$", fontsize=14)
-    ax1.set_title("Adiabatic Invariant", fontsize=16)
-    ax1.legend(loc="upper right", fontsize=12)
-    ax1.grid(True)
+    # First plot styling
+    ax1.set_ylabel(r"$J = \oint v_{x} \, \mathrm{d}x$", fontsize=12)
+    ax1.set_title("Adiabatic Invariant", pad=15)
+    ax1.legend(loc="upper right", framealpha=0.9, edgecolor="#CCCCCC", fancybox=True)
 
-    # Plot 2: Adiabatic condition and growth rate
-    for eps, t, adiabatic_cond, growth_rate in adiabatic_data:
-        ax2.plot(t, adiabatic_cond, label=rf"$\eta$, $\epsilon = {eps}$")
-        if show_growth_rate:
-            ax2.plot(
-                t,
-                growth_rate,
-                linestyle="--",
-                label=rf"Growth Rate, $\epsilon = {eps}$",
-            )
-
-    # Add shaded tolerance regions with increased transparency
+    # Define adiabatic regions
     regions = [
         (0, 0.001, "Highly Adiabatic (<0.001)", "green"),
         (0.001, 0.01, "Moderately Adiabatic (0.001-0.01)", "yellow"),
@@ -273,33 +350,78 @@ def plotter(path_, fname_, show_growth_rate=False):
         (0.1, 1, "Non-Adiabatic (>0.1)", "red"),
     ]
 
-    # Create custom legend entries for shaded regions
+    # Plot adiabatic regions
     custom_patches = []
     for ymin, ymax, label, color in regions:
-        ax2.axhspan(ymin, ymax, facecolor=color, alpha=0.1)
-        patch = mpatches.Patch(color=color, alpha=0.3, label=label)
+        ax2.axhspan(ymin, ymax, facecolor=color, alpha=0.1, edgecolor="none")
+        patch = mpatches.Patch(color=color, alpha=0.3, label=label, linewidth=0)
         custom_patches.append(patch)
 
+    # Plot adiabatic conditions
+    for (eps, t, adiabatic_cond, growth_rate), color in zip(adiabatic_data, colors):
+        ax2.plot(
+            t,
+            adiabatic_cond,
+            color=color,
+            linewidth=1.5,
+            label=rf"$\eta$, $\epsilon = {eps}$",
+        )
+        if show_growth_rate:
+            ax2.plot(
+                t,
+                growth_rate,
+                color=color,
+                linestyle="--",
+                linewidth=1,
+                alpha=0.7,
+                label=rf"Growth Rate, $\epsilon = {eps}$",
+            )
+
+    # Second plot styling
     ax2.set_yscale("log")
-    ax2.set_xlabel(r"$\tau$", fontsize=14)
-    ax2.set_ylabel(r"$\eta$", fontsize=14)
+    ax2.set_ylabel(r"$\eta$", fontsize=12)
     ax2.set_title(
-        "Adiabatic Condition" + (" and Growth Rate" if show_growth_rate else ""),
-        fontsize=16,
+        "Adiabatic Condition" + (" and Growth Rate" if show_growth_rate else ""), pad=5
     )
-    # Combine existing legend handles with custom patches
+
+    # X-axis labels based on sharing setting
+    if share_x_axis:
+        # Only show x-label on bottom plot
+        ax2.set_xlabel(r"$\tau$", fontsize=12)
+    else:
+        # Show x-label on both plots
+        ax1.set_xlabel(r"$\tau$", fontsize=12)
+        ax2.set_xlabel(r"$\tau$", fontsize=12)
+
+    # Combine legends
     handles, labels = ax2.get_legend_handles_labels()
     handles.extend(custom_patches)
     labels.extend([patch.get_label() for patch in custom_patches])
-    ax2.legend(handles, labels, loc="lower right", fontsize=12)
-    ax2.grid(True)
+    ax2.legend(
+        handles,
+        labels,
+        loc="lower right",
+        framealpha=0.9,
+        edgecolor="#CCCCCC",
+        fancybox=True,
+        ncol=1,
+    )
 
+    # Final adjustments and saving
     plt.tight_layout()
+
+    # Save high-quality figures
     save_file_name = "Adiabatic_Condition_and_Growth_Rate"
-    path_to_save = os.path.join(plots_folder, save_file_name + save_file_extension)
-    plt.savefig(path_to_save, dpi=600)
-    path_to_save = os.path.join(plots_folder, save_file_name + ".png")
-    plt.savefig(path_to_save, dpi=600)
+    for ext in [save_file_extension, ".png"]:
+        path_to_save = os.path.join(plots_folder, save_file_name + ext)
+        plt.savefig(
+            path_to_save,
+            dpi=600,
+            bbox_inches="tight",
+            pad_inches=0.1,
+            metadata={"Creator": "Scientific Visualization Script"},
+        )
+
     plt.show()
 
 
