@@ -10,6 +10,7 @@ calculate_integral: true
 calculate_traditional_magneticMoment: false
 show_extremums_peaks: false
 SHARE_X_AXIS: true
+show_amplitude_analysis: true
 simulation_parameters:
   eps: 0.0177
   epsphi: 0.0

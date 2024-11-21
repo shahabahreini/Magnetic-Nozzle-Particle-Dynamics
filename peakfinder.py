@@ -34,6 +34,7 @@ class Configuration:
             "calculate_traditional_magneticMoment"
         ]
         self.show_extremums_peaks = self.config["show_extremums_peaks"]
+        self.show_amplitude_analysis = self.config["show_amplitude_analysis"]
 
     def load_config(self, config_path):
         with open(config_path, "r") as config_file:
@@ -53,7 +54,56 @@ fpath = config.target_folder
 extremum_of = config.extremum_of
 show_extremums_peaks = config.show_extremums_peaks
 share_x_axis = config.share_x_axis
+
 # ------------------------------------ --- ----------------------------------- #
+
+
+def save_plots_with_timestamp(fig, base_name, parameters=None):
+    """
+    Save plots with timestamp and parameters in organized directories.
+
+    Parameters:
+    -----------
+    fig : matplotlib.figure.Figure
+        The figure to save
+    base_name : str
+        Base name for the file
+    parameters : dict, optional
+        Dictionary of parameters to include in filename
+    """
+    # Generate timestamp filename
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    save_file_name = f"{base_name}_{timestamp}"
+
+    # Create plots directory if it doesn't exist
+    os.makedirs(plots_folder, exist_ok=True)
+
+    # Save with multiple extensions
+    for ext in [save_file_extension, ".png"]:
+        # Create subdirectory for file type if it doesn't exist
+        subdir = os.path.join(plots_folder, ext.lstrip("."))
+        os.makedirs(subdir, exist_ok=True)
+
+        # Generate filename with parameters if available
+        if parameters:
+            param_str = "_".join([f"{k}{v}" for k, v in parameters.items()])
+            filename = f"{save_file_name}_{param_str}{ext}"
+        else:
+            filename = f"{save_file_name}{ext}"
+
+        path_to_save = os.path.join(subdir, filename)
+
+        # Save figure with only supported metadata
+        fig.savefig(
+            path_to_save,
+            dpi=600,
+            bbox_inches="tight",
+            pad_inches=0.1,
+            metadata={
+                "Creator": "Scientific Visualization Script",
+                "Date": datetime.datetime.now().isoformat(),
+            },
+        )
 
 
 def plot_extremums(results):
@@ -164,8 +214,6 @@ def plotter(path_, fname_, show_growth_rate=False):
         fname_ (str): Base filename for single file mode
         show_growth_rate (bool): Whether to show growth rate in the second subplot
     """
-    global parameter_dict
-
     # Reset to default style and then customize
     plt.style.use("default")
 
@@ -202,12 +250,13 @@ def plotter(path_, fname_, show_growth_rate=False):
             "axes.spines.left": True,
             "axes.spines.bottom": True,
             "figure.autolayout": True,
-            "axes.axisbelow": True,  # Place grid lines behind plot elements
+            "axes.axisbelow": True,
         }
     )
 
     plot_data = []
     adiabatic_data = []
+    file_data = []
 
     # File handling
     if is_multi_files:
@@ -227,6 +276,8 @@ def plotter(path_, fname_, show_growth_rate=False):
         if not os.path.exists(file_path):
             print(f"File not found: {file_path}")
             continue
+
+        file_data.append(file_path)
 
         # Read and process data
         df = lib.read_exported_csv_2Dsimulation(path_, fname)
@@ -256,18 +307,13 @@ def plotter(path_, fname_, show_growth_rate=False):
     fig = plt.figure(figsize=(12, 10), dpi=150)
 
     if share_x_axis:
-        gs = plt.GridSpec(
-            2, 1, height_ratios=[1, 1], hspace=0.1
-        )  # Reduced hspace for shared axis
+        gs = plt.GridSpec(2, 1, height_ratios=[1, 1], hspace=0.1)
         ax1 = fig.add_subplot(gs[0])
-        ax2 = fig.add_subplot(gs[1], sharex=ax1)  # Share x-axis with first plot
-        # Hide x-label and ticks for the first subplot
+        ax2 = fig.add_subplot(gs[1], sharex=ax1)
         ax1.tick_params(labelbottom=False)
         plt.setp(ax1.get_xticklabels(), visible=False)
     else:
-        gs = plt.GridSpec(
-            2, 1, height_ratios=[1, 1], hspace=0.2
-        )  # More space between plots
+        gs = plt.GridSpec(2, 1, height_ratios=[1, 1], hspace=0.2)
         ax1 = fig.add_subplot(gs[0])
         ax2 = fig.add_subplot(gs[1])
 
@@ -294,7 +340,6 @@ def plotter(path_, fname_, show_growth_rate=False):
         ax.grid(True, linestyle=":", alpha=0.4, which="minor", color="#EEEEEE")
         ax.set_axisbelow(True)
 
-        # Spine styling
         for spine in ax.spines.values():
             spine.set_linewidth(0.5)
             spine.set_color("#333333")
@@ -320,7 +365,6 @@ def plotter(path_, fname_, show_growth_rate=False):
             for key, value in parameters.items()
         )
 
-        # Enhanced text box
         ax1.text(
             0.02,
             0.95,
@@ -350,6 +394,14 @@ def plotter(path_, fname_, show_growth_rate=False):
         (0.1, 1, "Non-Adiabatic (>0.1)", "red"),
     ]
 
+    # Define adiabatic regions
+    regions = [
+        (0, 0.001, "Highly Adiabatic (<0.001)", "green"),
+        (0.001, 0.01, "Moderately Adiabatic (0.001-0.01)", "yellow"),
+        (0.01, 0.1, "Approaching Breakdown (0.01-0.1)", "orange"),
+        (0.1, 1, "Non-Adiabatic (>0.1)", "red"),
+    ]
+
     # Plot adiabatic regions
     custom_patches = []
     for ymin, ymax, label, color in regions:
@@ -357,8 +409,9 @@ def plotter(path_, fname_, show_growth_rate=False):
         patch = mpatches.Patch(color=color, alpha=0.3, label=label, linewidth=0)
         custom_patches.append(patch)
 
-    # Plot adiabatic conditions
+    # Plot adiabatic conditions with crossing point annotations
     for (eps, t, adiabatic_cond, growth_rate), color in zip(adiabatic_data, colors):
+        # Plot the main line
         ax2.plot(
             t,
             adiabatic_cond,
@@ -366,6 +419,61 @@ def plotter(path_, fname_, show_growth_rate=False):
             linewidth=1.5,
             label=rf"$\eta$, $\epsilon = {eps}$",
         )
+
+        # Find first crossing points for each region boundary
+        region_boundaries = [0.001, 0.01, 0.1]
+        annotated_boundaries = set()  # Keep track of which boundaries we've annotated
+
+        for i in range(len(t) - 1):
+            for boundary in region_boundaries:
+                if boundary in annotated_boundaries:
+                    continue  # Skip if we've already annotated this boundary
+
+                if (adiabatic_cond[i] <= boundary <= adiabatic_cond[i + 1]) or (
+                    adiabatic_cond[i + 1] <= boundary <= adiabatic_cond[i]
+                ):
+                    # Linear interpolation to find exact crossing point
+                    frac = (boundary - adiabatic_cond[i]) / (
+                        adiabatic_cond[i + 1] - adiabatic_cond[i]
+                    )
+                    cross_time = t[i] + frac * (t[i + 1] - t[i])
+
+                    # Add annotation with longer arrow and horizontal text
+                    ax2.annotate(
+                        f"τ={cross_time:.2f}\nη={boundary:.3f}",
+                        xy=(cross_time, boundary),
+                        xytext=(15, 45),  # Horizontal offset
+                        textcoords="offset points",
+                        ha="left",
+                        va="center",
+                        bbox=dict(
+                            boxstyle="round,pad=0.5",
+                            fc="white",
+                            ec="gray",
+                            alpha=0.8,
+                            linewidth=0.5,
+                        ),
+                        arrowprops=dict(
+                            arrowstyle="->",
+                            connectionstyle="arc3,rad=0.2",
+                            color="gray",
+                            alpha=0.6,
+                            lw=1.5,  # Longer arrow line width
+                            shrinkA=5,  # Length of the arrow
+                        ),
+                    )
+
+                    # Mark this boundary as annotated
+                    annotated_boundaries.add(boundary)
+
+                    # If we've found all boundaries, we can break the inner loop
+                    if len(annotated_boundaries) == len(region_boundaries):
+                        break
+
+            # If we've found all boundaries, we can break the outer loop
+            if len(annotated_boundaries) == len(region_boundaries):
+                break
+
         if show_growth_rate:
             ax2.plot(
                 t,
@@ -386,10 +494,8 @@ def plotter(path_, fname_, show_growth_rate=False):
 
     # X-axis labels based on sharing setting
     if share_x_axis:
-        # Only show x-label on bottom plot
         ax2.set_xlabel(r"$\tau$", fontsize=12)
     else:
-        # Show x-label on both plots
         ax1.set_xlabel(r"$\tau$", fontsize=12)
         ax2.set_xlabel(r"$\tau$", fontsize=12)
 
@@ -407,20 +513,16 @@ def plotter(path_, fname_, show_growth_rate=False):
         ncol=1,
     )
 
-    # Final adjustments and saving
+    # Final adjustments
     plt.tight_layout()
 
-    # Save high-quality figures
-    save_file_name = "Adiabatic_Condition_and_Growth_Rate"
-    for ext in [save_file_extension, ".png"]:
-        path_to_save = os.path.join(plots_folder, save_file_name + ext)
-        plt.savefig(
-            path_to_save,
-            dpi=600,
-            bbox_inches="tight",
-            pad_inches=0.1,
-            metadata={"Creator": "Scientific Visualization Script"},
-        )
+    # Get parameters from first file if available
+    parameters = None
+    if file_data:
+        parameters = extract_parameters_by_file_name(os.path.basename(file_data[0]))
+
+    # Save plots with timestamp
+    save_plots_with_timestamp(fig, "Adiabatic_Condition_and_Growth_Rate", parameters)
 
     plt.show()
 
@@ -495,6 +597,268 @@ def perform_adiabatic_calculations(chosen_csv, auto_scale=True, y_margin=1e-17):
     plt.show()
 
 
+def calculate_amplitude_and_average(df, peak_indices):
+    """
+    Calculate amplitude per period and running average.
+
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        DataFrame containing the time series data
+    peak_indices : list
+        List of indices corresponding to peaks
+
+    Returns:
+    --------
+    timestamps : list
+        List of timestamps for each period
+    amplitudes : list
+        List of amplitudes for each period
+    running_averages : list
+        List of running averages
+    """
+    timestamps = []
+    amplitudes = []
+    running_averages = []
+
+    for i in range(1, len(peak_indices)):
+        start_idx = peak_indices[i - 1]
+        end_idx = peak_indices[i]
+
+        # Calculate amplitude for this period
+        period_data = df[config.extremum_of].iloc[start_idx:end_idx]
+        amplitude = period_data.max() - period_data.min()
+
+        # Use the midpoint of the period for the timestamp
+        timestamp = df["timestamp"].iloc[start_idx + (end_idx - start_idx) // 2]
+
+        timestamps.append(timestamp)
+        amplitudes.append(amplitude)
+
+        # Calculate running average
+        running_avg = np.mean(amplitudes)
+        running_averages.append(running_avg)
+
+    return timestamps, amplitudes, running_averages
+
+
+def plot_amplitude_analysis(ax, timestamps, amplitudes, running_averages, color):
+    """
+    Plot amplitude analysis on the given axis.
+
+    Parameters:
+    -----------
+    ax : matplotlib.axes.Axes
+        The axis to plot on
+    timestamps : list
+        List of timestamps for x-axis
+    amplitudes : list
+        List of amplitudes per period
+    running_averages : list
+        List of running averages
+    color : str/tuple
+        Color for the plots
+    """
+    # Plot amplitude per period
+    ax.plot(
+        timestamps,
+        amplitudes,
+        marker="o",
+        linestyle="-",
+        color=color,
+        alpha=0.6,
+        label=r"Amplitude per period",
+    )
+
+    # Plot running average
+    ax.plot(
+        timestamps,
+        running_averages,
+        linestyle="--",
+        color=color,
+        linewidth=2,
+        label=r"Running average",
+    )
+
+    ax.set_xlabel(r"$\tau$")
+    ax.set_ylabel(r"Amplitude")
+    ax.grid(True, linestyle="--", alpha=0.7)
+    ax.legend()
+
+
+def plot_amplitude_analysis_separate(path_, fname_, show_plot=True):
+    """
+    Create a separate plot for amplitude analysis with dual y-axes and enhanced visuals.
+    Legend positioned inside the graph area in the upper left corner.
+    """
+    # Set up the style
+    plt.style.use("default")
+    plt.rcParams.update(
+        {
+            "font.family": "serif",
+            "font.size": 12,
+            "axes.labelsize": 14,
+            "axes.titlesize": 16,
+            "xtick.labelsize": 12,
+            "ytick.labelsize": 12,
+            "legend.fontsize": 9,  # Smaller font for compact legend
+            "figure.titlesize": 18,
+            "axes.grid": True,
+            "grid.alpha": 0.3,
+            "grid.linestyle": "--",
+            "grid.color": "#CCCCCC",
+            "axes.linewidth": 1.0,
+            "axes.edgecolor": "#333333",
+            "figure.dpi": 150,
+            "savefig.dpi": 600,
+            "figure.figsize": (10, 6),
+        }
+    )
+
+    # Create figure and axes
+    fig, ax1 = plt.subplots()
+    ax2 = ax1.twinx()
+
+    # File handling
+    if is_multi_files:
+        path_ = os.path.join(os.path.dirname(__file__), target_folder_multi_files)
+        filelst = os.listdir(path_)
+    else:
+        path_ = ""
+        filelst = [fname_ + ".csv"]
+
+    # Generate color palette
+    colors = plt.cm.viridis(np.linspace(0.1, 0.9, len(filelst)))
+
+    # Lists to store legend handles and labels
+    lines1, lines2 = [], []
+    labels1, labels2 = [], []
+
+    for fname, color in zip(filelst, colors):
+        if is_multi_files:
+            file_path = os.path.join(fpath, fname)
+        else:
+            file_path = os.path.join(path_, fname)
+
+        if not os.path.exists(file_path):
+            print(f"File not found: {file_path}")
+            continue
+
+        # Extract parameters from filename
+        current_params = extract_parameters_by_file_name(fname)
+        eps_value = current_params.get("eps", "N/A")
+
+        # Read and process data
+        df = lib.read_exported_csv_2Dsimulation(path_, fname)
+        varibale_to_find_peaks_with = df[config.extremum_of]
+        peak_indices = peakfinder_(varibale_to_find_peaks_with, False)
+
+        # Calculate amplitudes
+        timestamps, amplitudes, running_averages = calculate_amplitude_and_average(
+            df, peak_indices
+        )
+
+        # Plot amplitude per period on left y-axis
+        line1 = ax1.plot(
+            timestamps,
+            amplitudes,
+            marker="o",
+            markersize=4,
+            linestyle="-",
+            linewidth=1.5,
+            color=color,
+            alpha=0.7,
+            markerfacecolor="white",
+            markeredgewidth=1,
+            markeredgecolor=color,
+            label=rf"Amp. ($\epsilon={eps_value}$)",
+        )
+        lines1.extend(line1)
+        labels1.append(rf"Amp. ($\epsilon={eps_value}$)")
+
+        # Plot running average on right y-axis
+        line2 = ax2.plot(
+            timestamps,
+            running_averages,
+            linestyle="--",
+            linewidth=2,
+            color=color,
+            alpha=0.9,
+            label=rf"Avg. ($\epsilon={eps_value}$)",
+        )
+        lines2.extend(line2)
+        labels2.append(rf"Avg. ($\epsilon={eps_value}$)")
+
+    # Enhance axes labels and title
+    ax1.set_xlabel(r"$\tau$", fontsize=14, labelpad=10)
+    ax1.set_ylabel(r"Amplitude per period", fontsize=14, labelpad=10)
+    ax2.set_ylabel(r"Running average", fontsize=14, labelpad=15)
+
+    # Adjust grid
+    ax1.grid(True, linestyle="--", alpha=0.4, which="major")
+    ax1.grid(True, linestyle=":", alpha=0.2, which="minor")
+    ax1.minorticks_on()
+
+    # Title with enhanced styling
+    plt.title("Amplitude Analysis", pad=20, fontweight="bold")
+
+    # Combine all lines and labels for the legend
+    all_lines = lines1 + lines2
+    all_labels = labels1 + labels2
+
+    # Create legend inside the plot area
+    # Note: Using ax1 instead of fig for the legend
+    legend = ax1.legend(
+        all_lines,
+        all_labels,
+        loc="upper left",
+        bbox_to_anchor=(0.05, 0.95),  # Adjusted to be inside the plot
+        ncol=1,
+        fancybox=True,
+        shadow=True,
+        framealpha=0.8,
+        edgecolor="gray",
+        facecolor="white",
+        borderpad=0.5,
+        labelspacing=0.3,
+        handletextpad=0.5,
+        columnspacing=1.0,
+    )
+
+    # Add a box around the legend
+    legend.get_frame().set_linewidth(0.5)
+
+    # Set equal aspect ratio for y-axes
+    y1_min, y1_max = ax1.get_ylim()
+    y2_min, y2_max = ax2.get_ylim()
+    ax1_range = y1_max - y1_min
+    ax2_range = y2_max - y2_min
+
+    # Adjust y-axis limits to make them proportional
+    ax1.set_ylim(y1_min - 0.1 * ax1_range, y1_max + 0.1 * ax1_range)
+    ax2.set_ylim(y2_min - 0.1 * ax2_range, y2_max + 0.1 * ax2_range)
+
+    # Add light spines
+    for spine in ax1.spines.values():
+        spine.set_linewidth(0.5)
+    for spine in ax2.spines.values():
+        spine.set_linewidth(0.5)
+
+    # Adjust layout
+    plt.tight_layout()
+
+    # Get parameters from first file if available
+    save_parameters = None
+    if filelst:
+        save_parameters = extract_parameters_by_file_name(filelst[0])
+
+    # Save plots with timestamp
+    save_plots_with_timestamp(fig, "Amplitude_Analysis", save_parameters)
+
+    if show_plot:
+        plt.show()
+
+
 if __name__ == "__main__":
     if not is_multi_files:
         chosen_csv = search_for_export_csv()
@@ -507,3 +871,6 @@ if __name__ == "__main__":
 
     if config.calculate_traditional_magneticMoment:
         perform_adiabatic_calculations(chosen_csv)
+
+    if config.show_amplitude_analysis:
+        plot_amplitude_analysis_separate(fpath, chosen_csv)
