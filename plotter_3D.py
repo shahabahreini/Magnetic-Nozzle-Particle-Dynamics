@@ -375,6 +375,36 @@ def validate_parameter(df, param):
     return True
 
 
+def get_parameter_from_input(df, prompt_text):
+    """Get parameter from user input, accepting either name or number."""
+    while True:
+        user_input = Prompt.ask(prompt_text)
+
+        # Try to convert input to integer (index)
+        try:
+            if user_input.isdigit():
+                index = int(user_input) - 1
+                if 0 <= index < len(df.columns):
+                    return df.columns[index]
+                else:
+                    console.print("[red]Invalid index. Please try again.[/red]")
+                    display_available_parameters(df)
+                    continue
+            # If input is a string (parameter name)
+            elif user_input in df.columns:
+                return user_input
+            else:
+                console.print("[red]Invalid parameter name. Please try again.[/red]")
+                display_available_parameters(df)
+                continue
+        except ValueError:
+            console.print(
+                "[red]Invalid input. Please enter a number or parameter name.[/red]"
+            )
+            display_available_parameters(df)
+            continue
+
+
 def main():
     console = Console()
     console.print(
@@ -417,17 +447,19 @@ def main():
         default="3d",
     )
 
-    # Ask for x and y parameters for 2D plot, or coordinate system for 3D plot
+    # For 2D plots, modify the parameter selection part:
     if plot_type == "2d":
         display_available_parameters(df)
-        while True:
-            x_param = Prompt.ask("Enter the parameter for x-axis (e.g., rho, phi, z)")
-            if validate_parameter(df, x_param):
-                break
-        while True:
-            y_param = Prompt.ask("Enter the parameter for y-axis (e.g., rho, phi, z)")
-            if validate_parameter(df, y_param):
-                break
+        console.print(
+            "[yellow]You can enter either the parameter name or its number from the list above[/yellow]"
+        )
+
+        x_param = get_parameter_from_input(
+            df, "Enter the parameter for x-axis (name or number)"
+        )
+        y_param = get_parameter_from_input(
+            df, "Enter the parameter for y-axis (name or number)"
+        )
         coord_system = "cartesian"
     else:
         coord_system = Prompt.ask(
