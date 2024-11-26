@@ -73,10 +73,19 @@ function CylindricalProblem!(ddu, du, u, p, t)
     #ddu[5] = R_gc_z
     #ddu[6] = 0  # Assuming no change in guiding center phi component, adjust as necessary
 
-    log_term = log(inv_rho2_z2)
+    log_term = log(rho^2 + z^2)
 
-    dPhi_dR = rho * (z^2 * (1 - 2 * kappa) - 2 * rho^2 * kappa + 2 * kappa * (rho^2 - z^2 * log_term) * delta_star^2) * inv_rho2_z2^2
-    dPhi_dz = -z * (2 * z^2 * kappa + rho^2 * (1 + 2 * kappa) - 2 * rho^2 * kappa * (1 + log_term) * delta_star^2) * inv_rho2_z2^2
+    # Corrected dPhi_dz
+    dPhi_dz = -z * (rho^2 * (-2 * delta_star^2 * kappa + 2 * kappa + 1) + 
+                    2 * delta_star^2 * kappa * rho^2 * log_term + 
+                    2 * kappa * z^2) / (rho^2 + z^2)^2
+
+    # Corrected dPhi_dR
+    dPhi_dR = rho * (2 * (delta_star^2 - 1) * kappa * rho^2 + 
+                    2 * delta_star^2 * kappa * z^2 * log_term + 
+                    (1 - 2 * kappa) * z^2) / (rho^2 + z^2)^2
+
+
 
     ddu[1] = rho * dphi^2 + rho * dphi * Bz - eps_phi * dPhi_dR
     ddu[2] = (dz * Brho - drho * Bz - 2 * drho * dphi) / rho

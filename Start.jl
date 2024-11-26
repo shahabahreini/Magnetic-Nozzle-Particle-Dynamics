@@ -21,11 +21,18 @@ function simulate_2D()
 	Base.invokelatest(Simulation2D.ParticleMotion)
 end
 
+function simulate_1D()
+	includet("Simulation1D.jl")
+	@eval using .Simulation2D
+	Base.invokelatest(Simulation2D.ParticleMotion)
+end
+
 # Main loop
 while true
     println("$(BOLD)$(BLUE)Choose a simulation:$(RESET)")
     println("\t$(GREEN)1: 3D Simulation$(RESET)")
     println("\t$(GREEN)2: 2D Simulation$(RESET)")
+    println("\t$(GREEN)3: 1D Simulation$(RESET)")
     println("$(YELLOW)Enter 'n' to exit.$(RESET)")
 
     choice = readline()
@@ -36,6 +43,9 @@ while true
     elseif choice == "2"
         simulate_2D()
 		println("$(BOLD)2D simulation is done. Now you can update the initial conditions and run it again.$(RESET)")
+    elseif choice == "3"
+        simulate_1D()
+		println("$(BOLD)1D simulation is done. Now you can update the initial conditions and run it again.$(RESET)")
     elseif choice == "n"
         break
     else

@@ -571,8 +571,7 @@ def perform_adiabatic_calculations(chosen_csv, auto_scale=True, y_margin=1e-17):
     file_data = [
         (
             extract_parameters_by_file_name(file)["eps"],
-            f'ε = {
-         extract_parameters_by_file_name(file)["eps"]}',
+            f'ε = {extract_parameters_by_file_name(file)["eps"]}',
             os.path.join(csv_directory, file),
         )
         for file in os.listdir(csv_directory)
