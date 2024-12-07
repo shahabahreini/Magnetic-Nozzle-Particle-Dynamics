@@ -286,9 +286,7 @@ for spine in ax.spines.values():
     spine.set_color("#CCCCCC")
     spine.set_linewidth(0.8)
 
-# Adjust layout
-plt.tight_layout()
-save_plots_with_timestamp(fig, "1D_2D_z_solutions_comparison")
+
 # Define parameter mapping for latex symbols
 parameter_mapping = {
     "eps": r"$\epsilon$",
@@ -326,4 +324,7 @@ ax.text(
     ),
 )
 
+# Adjust layout
+plt.tight_layout()
+save_plots_with_timestamp(fig, "1D_2D_z_solutions_comparison")
 plt.show()
