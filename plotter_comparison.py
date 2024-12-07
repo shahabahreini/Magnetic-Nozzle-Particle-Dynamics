@@ -170,7 +170,7 @@ def create_fancy_annotation(fig, ax, xy, text, xytext):
     arrow_props = dict(
         arrowstyle="fancy",
         color="#404040",
-        connectionstyle="arc3,rad=0.2",
+        connectionstyle="arc3,rad=-0.2",  # Changed from 0.2 to -0.2 for left-side arrow
         alpha=0.8,
         linewidth=1.5,
     )
@@ -182,7 +182,7 @@ def create_fancy_annotation(fig, ax, xy, text, xytext):
         bbox=bbox_props,
         arrowprops=arrow_props,
         fontsize=9,
-        ha="left",
+        ha="right",  # Changed from 'left' to 'right'
         va="center",
     )
 
@@ -243,11 +243,11 @@ ax.plot(
 if result is not None:
     # Create fancy annotation
     annotation_text = (
-        f"First >{result['threshold']}% Difference\n"
+        f"Error >{result['threshold']}% Difference\n"
         f"────────────────────\n"
         f"Time: {result['time']:.3f}\n"
-        f"z₂ᴰ: {result['z_2d']:.3f}\n"
-        f"z₁ᴰ: {result['z_1d']:.3f}\n"
+        r"$Z_{2D}$" + f"(Exact): {result['z_2d']:.3f}\n"
+        r"$Z_{1D}$" + f"(Approximated): {result['z_1d']:.3f}\n"
         f"Δ: {result['difference']:.2f}%"
     )
 
@@ -257,7 +257,8 @@ if result is not None:
         xy=(result["time"], result["z_2d"]),
         text=annotation_text,
         xytext=(
-            result["time"] + (time_2d.max() - time_2d.min()) * 0.1,
+            result["time"]
+            - (time_2d.max() - time_2d.min()) * 0.1,  # Changed from + to -
             result["z_2d"] + (z_2d.max() - z_2d.min()) * 0.1,
         ),
     )
