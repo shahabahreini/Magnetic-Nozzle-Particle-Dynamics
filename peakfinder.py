@@ -609,7 +609,7 @@ def plotter(path_, fname_, show_growth_rate=False):
     # Save plots with timestamp
     save_plots_with_timestamp(fig, "Adiabatic_Condition_and_Growth_Rate", parameters)
 
-    # plt.show()
+    plt.show()
 
 
 def perform_adiabatic_calculations(chosen_csv, auto_scale=True, y_margin=1e-17):

@@ -243,7 +243,7 @@ ax.plot(
 if result is not None:
     # Create fancy annotation
     annotation_text = (
-        f"Error >{result['threshold']}% Difference\n"
+        f"Error > {result['threshold']}% Difference\n"
         f"────────────────────\n"
         f"Time: {result['time']:.3f}\n"
         r"$Z_{2D}$" + f"(Exact): {result['z_2d']:.3f}\n"
@@ -268,7 +268,7 @@ if result is not None:
         result["time"], result["z_2d"], "o", color="#E74C3C", markersize=8, alpha=0.8
     )
 
-    title = f"Trajectory Comparison (First >{result['threshold']}% Difference)"
+    title = f"Trajectory Comparison (Error > {result['threshold']}% Difference)"
 else:
     title = "Trajectory Comparison (No significant differences found)"
 

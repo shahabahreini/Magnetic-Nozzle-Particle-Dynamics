@@ -12,7 +12,7 @@ export CylindricalProblem!, SolvingtheProblem, ParticleMotion
 # Function to export data
 function exportData(t_values, z_values, dz_values, endTime)
     df = DataFrame(time=t_values, z=z_values, dz=dz_values)
-    filename = "2D_export-time$(round(endTime, digits=1)).csv"
+    filename = "1D_export-time$(round(endTime, digits=1)).csv"
     CSV.write(filename, df)
     return nothing
 end
