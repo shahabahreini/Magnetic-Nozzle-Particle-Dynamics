@@ -3,6 +3,7 @@ from matplotlib import rcParams
 from tabulate import tabulate
 from colorama import Fore, Style, init
 import os
+import yaml
 import pandas as pd
 from rich.console import Console
 from rich.table import Table
@@ -16,8 +17,52 @@ from plotter_violation import load_and_calculate_variation
 from plotter_velocity_components import plot_velocity_components
 from scipy import integrate
 from scipy.integrate import cumulative_trapezoid
+import glob
+import datetime
 
 console = Console()
+
+
+# ---------------------------------- Config ---------------------------------- #
+class Configuration:
+    def __init__(self, config_path):
+        self.config = self.load_config(config_path)
+        self.save_file_name = self.config["save_file_name"]
+        self.save_file_extension = self.config["save_file_extension"]
+        self.is_multi_files = self.config["is_multi_files"]
+        self.target_folder = self.config["target_folder_multi_files"]
+        self.plots_folder = self.config["plots_folder"]
+        self.parameter_dict = self.config["simulation_parameters"]
+        self.extremum_of = self.config["extremum_of"]
+        self.based_on_guiding_center = self.config["based_on_guiding_center"]
+        self.calculate_integral = self.config["calculate_integral"]
+        self.share_x_axis = self.config["SHARE_X_AXIS"]
+        self.calculate_traditional_magneticMoment = self.config[
+            "calculate_traditional_magneticMoment"
+        ]
+        self.show_extremums_peaks = self.config["show_extremums_peaks"]
+        self.show_amplitude_analysis = self.config["show_amplitude_analysis"]
+
+    def load_config(self, config_path):
+        with open(config_path, "r") as config_file:
+            return yaml.safe_load(config_file)
+
+
+config = Configuration("config.yaml")
+
+# Use values from the config file
+save_file_name = config.save_file_name
+save_file_extension = config.save_file_extension
+is_multi_files = config.is_multi_files
+target_folder_multi_files = config.target_folder
+plots_folder = config.plots_folder
+parameter_dict = config.parameter_dict
+fpath = config.target_folder
+extremum_of = config.extremum_of
+show_extremums_peaks = config.show_extremums_peaks
+share_x_axis = config.share_x_axis
+
+# ------------------------------------ --- ----------------------------------- #
 
 
 def print_styled(text, color=Fore.WHITE, style=Style.NORMAL):
@@ -424,6 +469,82 @@ def calculate_guiding_center(B, v, rho, z):
     return r_gc_rho, r_gc_z
 
 
+def find_common_and_varying_params(files):
+    all_params = [(file, extract_parameters_by_file_name(file)) for file in files]
+    common_params = {}
+    varying_params = defaultdict(list)
+
+    # Extract parameter names
+    param_names = set(all_params[0][1].keys())
+
+    # Find common parameters
+    for param in param_names:
+        param_values = [params[param] for _, params in all_params]
+        if all(v == param_values[0] for v in param_values):
+            # If the parameter is the same for all files, it's common
+            common_params[param] = param_values[0]
+        else:
+            # Otherwise, it's a varying parameter
+            for file, params in all_params:
+                varying_params[file].append(f"{get_axis_label(param)}={params[param]}")
+
+    # Sort files based on one of the varying parameters (e.g., 'eps')
+    sorted_files = sorted(all_params, key=lambda x: x[1].get("eps", 0))
+
+    # Sort varying parameters based on file order
+    sorted_varying_params = {file: varying_params[file] for file, _ in sorted_files}
+
+    return common_params, sorted_varying_params, [file for file, _ in sorted_files]
+
+
+def save_plots_with_timestamp(fig, base_name, parameters=None):
+    """
+    Save plots with timestamp and parameters in organized directories.
+
+    Parameters:
+    -----------
+    fig : matplotlib.figure.Figure
+        The figure to save
+    base_name : str
+        Base name for the file
+    parameters : dict, optional
+        Dictionary of parameters to include in filename
+    """
+    # Generate timestamp filename
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    save_file_name = f"{base_name}_{timestamp}"
+
+    # Create plots directory if it doesn't exist
+    os.makedirs(plots_folder, exist_ok=True)
+
+    # Save with multiple extensions
+    for ext in [save_file_extension, ".png"]:
+        # Create subdirectory for file type if it doesn't exist
+        subdir = os.path.join(plots_folder, ext.lstrip("."))
+        os.makedirs(subdir, exist_ok=True)
+
+        # Generate filename with parameters if available
+        if parameters:
+            param_str = "_".join([f"{k}{v}" for k, v in parameters.items()])
+            filename = f"{save_file_name}_{param_str}{ext}"
+        else:
+            filename = f"{save_file_name}{ext}"
+
+        path_to_save = os.path.join(subdir, filename)
+
+        # Save figure with only supported metadata
+        fig.savefig(
+            path_to_save,
+            dpi=600,
+            bbox_inches="tight",
+            pad_inches=0.1,
+            metadata={
+                "Creator": "Scientific Visualization Script",
+                "Date": datetime.datetime.now().isoformat(),
+            },
+        )
+
+
 # ------------------------------ Magnetic Field ------------------------------ #
 # Define the components of the magnetic field in cylindrical coordinates
 def B_rho(rho, z):
@@ -701,3 +822,12 @@ def list_csv_files(folder):
 
     console.print(table)
     return files
+
+
+def list_csv_files_noFolder():
+    """List all CSV files in the current directory."""
+    csv_files = glob.glob("*.csv")
+    print("\nAvailable CSV files:")
+    for idx, file in enumerate(csv_files, 1):
+        print(f"{idx}. {file}")
+    return csv_files

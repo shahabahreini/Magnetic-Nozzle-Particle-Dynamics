@@ -17,6 +17,7 @@ from lib import (
     extract_parameters_by_file_name,
     list_csv_files,
     list_folders,
+    find_common_and_varying_params,
 )
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 
@@ -243,34 +244,6 @@ def add_parameter_textbox(ax_params, common_params, varying_params):
         verticalalignment="top",
         bbox=props,
     )
-
-
-def find_common_and_varying_params(files):
-    all_params = [(file, extract_parameters_by_file_name(file)) for file in files]
-    common_params = {}
-    varying_params = defaultdict(list)
-
-    # Extract parameter names
-    param_names = set(all_params[0][1].keys())
-
-    # Find common parameters
-    for param in param_names:
-        param_values = [params[param] for _, params in all_params]
-        if all(v == param_values[0] for v in param_values):
-            # If the parameter is the same for all files, it's common
-            common_params[param] = param_values[0]
-        else:
-            # Otherwise, it's a varying parameter
-            for file, params in all_params:
-                varying_params[file].append(f"{get_axis_label(param)}={params[param]}")
-
-    # Sort files based on one of the varying parameters (e.g., 'eps')
-    sorted_files = sorted(all_params, key=lambda x: x[1].get("eps", 0))
-
-    # Sort varying parameters based on file order
-    sorted_varying_params = {file: varying_params[file] for file, _ in sorted_files}
-
-    return common_params, sorted_varying_params, [file for file, _ in sorted_files]
 
 
 def Plotter(

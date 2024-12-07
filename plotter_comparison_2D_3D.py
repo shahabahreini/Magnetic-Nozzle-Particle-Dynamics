@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
-from lib import extract_parameters_by_file_name
+from lib import extract_parameters_by_file_name, list_csv_files
 import datetime
 import yaml
 
@@ -107,12 +107,6 @@ def save_plots_with_timestamp(fig, base_name, parameters=None):
                 "Date": datetime.datetime.now().isoformat(),
             },
         )
-
-
-# Function to list all CSV files in the current directory
-def list_csv_files():
-    files = [f for f in os.listdir(".") if f.endswith(".csv")]
-    return files
 
 
 # Function to plot the data from two selected CSV files
