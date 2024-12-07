@@ -1,88 +1,139 @@
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.integrate import solve_ivp
+from scipy.signal import find_peaks
+from scipy.optimize import minimize
 
-# Parameters from the provided conditions
-theta_0 = np.pi / 30  # Initial angle
-alpha_0 = 90.0        # Alpha in degrees
-beta_0 = 0.0
-phi_0 = 0.0
-epsilon = 0.005
-eps_phi = 0.002
+# Constants
+eps_phi = 0.001
 kappa = 0.01
 delta_star = 0.01
-time_end = 350.0
-l0 = -0.9946  # Updated l0
 
-# Derived constants
-A = (kappa + 0.5) * delta_star**2
-B = kappa * delta_star**2
-J = epsilon
-
-# Helper functions
-def sqrt_term(z, alpha, eps_phi, A, B):
-    return np.sqrt(alpha + 2 * z**2 * (A + B * np.log(np.maximum(z, 1e-10))) * eps_phi)
-
-def denom_term(z, sqrt_val, J):
-    return z**2 + (J * z**2) / (np.pi * sqrt_val)
-
-# Differential equation for d²z/dt²
-def magnetic_nozzle(t, u):
-    z, dz = u
-    z = max(z, 1e-10)  # Avoid division by zero
-    sqrt_val = sqrt_term(z, alpha_0, eps_phi, A, B)
-    denom = denom_term(z, sqrt_val, J)
-    
-    term1 = (np.pi * eps_phi * sqrt_val * (
-        J - 2 * J * (-1 + delta_star**2) * kappa +
-        2 * J * delta_star**2 * kappa * np.log(denom) +
-        2 * np.pi * kappa * sqrt_val
-    )) / (z * (J + np.pi * sqrt_val)**2)
-    
-    term2 = -(l0 + z / np.sqrt(denom)) / denom**(3/2)
-    
-    dzdt = term1 + term2
-    return [dz, dzdt]
-
-# Initial conditions
-z0 = np.cos(theta_0)
-dz0 = 0.0
-t_span = (0, time_end)
-u0 = [z0, dz0]
-
-# Solve the ODE
-sol = solve_ivp(magnetic_nozzle, t_span, u0, method='RK45', t_eval=np.linspace(0, time_end, 1000))
-
-# Extract solution
-t = sol.t
-z = sol.y[0]
-
-# Plotting
-plt.figure(figsize=(14, 6))
-plt.plot(t, z, label=r"$z(t)$", linewidth=2, c="darkcyan")
-plt.title(r"$z$ vs $\tau$", fontsize=16)
-plt.xlabel(r"$\tau$", fontsize=14)
-plt.ylabel(r"$z$", fontsize=14)
-plt.grid(True)
-
-# Add a parameter box
-props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-param_text = (
-    f"Simulation Parameters:\n"
-    f"$\\tau$ = {time_end}\n"
-    f"$\\theta_0$ = {np.degrees(theta_0):.2f}\n"
-    f"$\\epsilon_\\Phi$ = {eps_phi}\n"
-    f"$\\epsilon$ = {epsilon}\n"
-    f"$\\beta_0$ = {beta_0}\n"
-    f"$\\kappa$ = {kappa}\n"
-    f"$\\delta_\\star$ = {delta_star}\n"
-    f"$\\alpha_0$ = {alpha_0}\n\n"
-    f"Varying Parameters:\n"
-    f"Method: RK45"
+# Read the CSV data
+df = pd.read_csv(
+    "2D_export-eps0.005-epsphi0.001-kappa0.01-deltas0.01-beta0.0-alpha90.0-theta0.0-time350.0.csv"
 )
-plt.text(0.95, 0.5, param_text, transform=plt.gca().transAxes, fontsize=12,
-         verticalalignment='center', horizontalalignment='right', bbox=props)
 
-plt.legend()
+
+# Function to estimate l0
+def estimate_l0():
+    # Get initial conditions
+    z0 = df["z"].iloc[0]
+    v0 = df["dz"].iloc[0]
+
+    # Calculate initial acceleration from the data
+    initial_acc = np.gradient(df["dz"].values[:10], df["timestamp"].values[:10])[0]
+
+    # Define the acceleration difference function
+    def acc_diff(l0):
+        z = z0
+        # Full equation of motion including eps_phi term
+        acc = (
+            -(l0**2) / (z**3)
+            + eps_phi * (2 * delta_star**2 * kappa * np.log(z**2) + 2 * kappa) / z
+        )
+        return (acc - initial_acc) ** 2
+
+    # Find l0 that minimizes the difference
+    l0_test = np.linspace(0.1, 1.0, 1000)
+    acc_diffs = [acc_diff(l0) for l0 in l0_test]
+    l0 = l0_test[np.argmin(acc_diffs)]
+
+    return l0
+
+
+# Calculate l0
+l0 = estimate_l0()
+print(f"Estimated l0 = {l0:.6f}")
+
+
+# Calculate radial frequency from numerical data
+def analyze_radial_oscillations():
+    # Find peaks in rho to determine oscillation periods
+    peaks, _ = find_peaks(df["rho"])
+
+    # Calculate time differences between peaks
+    peak_times = df["timestamp"][peaks]
+    periods = np.diff(peak_times)
+    frequencies = 2 * np.pi / periods
+
+    return peaks, frequencies
+
+
+# Plot trajectories and phase space
+fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
+
+# Plot R(t) and z(t)
+ax1.plot(df["timestamp"], df["rho"], label="R(t)")
+ax1.plot(df["timestamp"], df["z"], label="z(t)")
+ax1.set_xlabel("Time (τ)")
+ax1.set_ylabel("Position")
+ax1.legend()
+ax1.set_title("Position vs Time")
+
+# Plot phase space R-dR
+ax2.plot(df["rho"], df["drho"])
+ax2.set_xlabel("R")
+ax2.set_ylabel("dR/dτ")
+ax2.set_title("Phase Space (R)")
+
+# Plot phase space z-dz
+ax3.plot(df["z"], df["dz"])
+ax3.set_xlabel("z")
+ax3.set_ylabel("dz/dτ")
+ax3.set_title("Phase Space (z)")
+
+# Calculate and plot ωᵣ
+peaks, frequencies = analyze_radial_oscillations()
+ax4.plot(df["timestamp"][peaks[:-1]], frequencies, "o-")
+ax4.set_xlabel("Time (τ)")
+ax4.set_ylabel("ωᵣ")
+ax4.set_title("Radial Frequency vs Time")
+
 plt.tight_layout()
+plt.show()
+
+
+# Calculate adiabatic invariant J
+def calculate_J():
+    # Calculate J = ∮ p_R dR ≈ area of phase space orbit
+    E_R = 0.5 * (df["drho"] ** 2) + 0.5 * (df["omega_rho"] ** 2 * df["rho"] ** 2)
+    J = 2 * np.pi * E_R / df["omega_rho"]
+    return J
+
+
+J = calculate_J()
+
+# Plot J vs time
+plt.figure(figsize=(10, 6))
+plt.plot(df["timestamp"], J)
+plt.xlabel("Time (τ)")
+plt.ylabel("J (Adiabatic Invariant)")
+plt.title("Adiabatic Invariant vs Time")
+plt.show()
+
+# Print statistical analysis
+print(f"Average ωᵣ = {np.mean(frequencies):.6f} ± {np.std(frequencies):.6f}")
+print(f"Average J = {np.mean(J):.6f} ± {np.std(J):.6f}")
+
+# Additional analysis of l0
+# Plot the acceleration difference vs l0 to verify the estimate
+l0_range = np.linspace(0.1, 1.0, 1000)
+z0 = df["z"].iloc[0]
+initial_acc = np.gradient(df["dz"].values[:10], df["timestamp"].values[:10])[0]
+acc_diffs = [
+    -(l0**2) / (z0**3)
+    + eps_phi * (2 * delta_star**2 * kappa * np.log(z0**2) + 2 * kappa) / z0
+    - initial_acc
+    for l0 in l0_range
+]
+
+plt.figure(figsize=(10, 6))
+plt.plot(l0_range, np.abs(acc_diffs))
+plt.axvline(l0, color="r", linestyle="--", label=f"Estimated l0 = {l0:.6f}")
+plt.xlabel("l0")
+plt.ylabel("|Acceleration Difference|")
+plt.title("l0 Estimation Verification")
+plt.legend()
+plt.grid(True)
 plt.show()

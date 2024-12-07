@@ -58,6 +58,8 @@ function exportData(diffrentialSol, endTime)
     return nothing
 end
 
+
+
 """
     CylindricalProblem!(ddu, du, u, p, t)
 
@@ -69,6 +71,19 @@ function CylindricalProblem!(ddu, du, u, p, t)
     global z_0, rho_0, dphi0
     rho, z = u
 
+    # ---------------------------- Electric Field Term --------------------------- #
+    log_term = log(rho^2 + z^2)
+
+    # Corrected dPhi_dz
+    dPhi_dz = -z * (rho^2 * (-2 * delta_star^2 * kappa + 2 * kappa + 1) +
+                    2 * delta_star^2 * kappa * rho^2 * log_term +
+                    2 * kappa * z^2) / (rho^2 + z^2)^2
+
+    # Corrected dPhi_dR
+    dPhi_dR = rho * (2 * (delta_star^2 - 1) * kappa * rho^2 +
+                     2 * delta_star^2 * kappa * z^2 * log_term +
+                     (1 - 2 * kappa) * z^2) / (rho^2 + z^2)^2
+
     # ------------------------------ Exact Equations ----------------------------- #
     # Calculate the l0, frac0, and frac1 terms for efficiency
     l0 = epsilon * sin(alpha_0) * sin(beta_0) * sin(theta_0) - z_0 / sqrt(z_0^2 + rho_0^2)
@@ -77,8 +92,8 @@ function CylindricalProblem!(ddu, du, u, p, t)
     fac3 = (l0 + z / fac0)
 
     # Update the differential equations
-    ddu[1] = 1 / rho^3 * fac3 * (l0 + z * (2 * rho^2 + z^2) / fac1)
-    ddu[2] = -1 / fac1 * fac3
+    ddu[1] = 1 / rho^3 * fac3 * (l0 + z * (2 * rho^2 + z^2) / fac1) - eps_phi * dPhi_dR
+    ddu[2] = -1 / fac1 * fac3 - eps_phi * dPhi_dz
 
     # --------------------------- Approximate Equation --------------------------- #
     #= eps_p = epsilon * sin(alpha_0) * sin(beta_0) / sin(theta_0)

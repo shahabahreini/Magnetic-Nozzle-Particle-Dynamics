@@ -14,6 +14,7 @@ from findpeaks import findpeaks
 import yaml
 from plotter_violation import load_and_calculate_variation
 import matplotlib.patches as mpatches
+from scipy.integrate import cumulative_trapezoid
 
 
 # ---------------------------------- Config ---------------------------------- #
@@ -123,7 +124,7 @@ def spherical_to_cartesian(rho, theta, phi):
     return x, y, z
 
 
-def peakfinder_(X, show_plot=True):
+def peakfinder_(X, show_plot=False):
     # Initialize
     def peak_couter(results):
         df_result = results["df"]
@@ -163,17 +164,101 @@ def omega_squared(z, l0):
     return 4 * (3 / 4 * l0 + 1) / z**4
 
 
-def adiabatic_condition(z, dz_dt, l0):
-    omega = np.sqrt(omega_squared(z, l0))
-    return np.abs(dz_dt / z) / (omega / 2 * np.pi)
+# def adiabatic_condition(z, dz_dt, l0):
+#     omega = np.sqrt(omega_squared(z, l0))
+#     return np.abs(dz_dt / z) / (omega / 2 * np.pi)
 
 
-def calculate_adiabatic_condition(df):
-    z = df["z"].values
-    t = df["timestamp"].values
-    dz_dt = np.gradient(z, t)
+# def calculate_adiabatic_condition(df):
+#     z = df["z"].values
+#     t = df["timestamp"].values
+#     dz_dt = np.gradient(z, t)
+#     l0 = angular_momentum_calculator_cylindricalCoordinates(df)
+#     return adiabatic_condition(z, dz_dt, l0), dz_dt
+
+
+def calculate_omega0_squared(l_0):
+    """
+    Calculate ω₀² according to the formula: ω₀ = (3/4 * l₀ + 1)
+    Returns the square of ω₀
+    """
+    omega_0 = 3 / 4 * l_0 + 1
+    return omega_0**2
+
+
+def omega_tau(z, eps_phi, kappa, delta_star, l_0):
+    """
+    Calculate ω(τ) according to the new formula
+    """
+    omega0_sq = calculate_omega0_squared(l_0)
+
+    # First term: ω₀²/z⁴
+    magnetic_term = omega0_sq / (z**4)
+
+    # Electric terms inside ε_φ parentheses
+    electric_terms = (
+        (kappa * delta_star**2) / (z**4)  # k δ_*²/z⁴
+        - kappa * np.log(1 / (z**2))  # -k log(1/z²)
+        + 1 / (z**4)  # 1/z⁴
+    )
+
+    return np.sqrt(magnetic_term + eps_phi * electric_terms)
+
+
+def domega_dtau(z, z_prime, eps_phi, kappa, delta_star, l_0):
+    """
+    Calculate dω/dτ according to the new formula
+    """
+    omega = omega_tau(z, eps_phi, kappa, delta_star, l_0)
+
+    term1 = (
+        -4
+        * (calculate_omega0_squared(l_0) + eps_phi * (kappa * delta_star**2 + 1))
+        / (z**5)
+    )
+    term2 = 2 * eps_phi * kappa / z
+
+    return (term1 + term2) * z_prime / (2 * omega)
+
+
+def adiabatic_condition(z, dz_dt, eps_phi, kappa, delta_star, l_0):
+    """
+    Calculate the adiabatic parameter η using the new formula:
+    η = (1/ω²)|dω/dt|
+    """
+    # Calculate ω
+    omega = omega_tau(z, eps_phi, kappa, delta_star, l_0)
+
+    # Calculate dω/dτ
+    domega = domega_dtau(z, dz_dt, eps_phi, kappa, delta_star, l_0)
+
+    # Calculate η
+    eta = np.abs(domega) / (omega**2)
+
+    return eta
+
+
+def calculate_adiabatic_condition(df, fname):
+    """
+    Calculate adiabatic condition from DataFrame data.
+    """
+    # Extract parameters from filename
+    params = extract_parameters_by_file_name(fname)
+
+    # Map parameters from filename
+    eps_phi = params.get("epsphi", params.get("eps"))
+    kappa = params.get("kappa")
+    delta_star = params.get("deltas")
     l0 = angular_momentum_calculator_cylindricalCoordinates(df)
-    return adiabatic_condition(z, dz_dt, l0), dz_dt
+
+    # Extract position and velocity data
+    z = df["z"].values
+    dz_dt = df["dz"].values
+
+    # Calculate adiabatic condition
+    eta = adiabatic_condition(z, dz_dt, eps_phi, kappa, delta_star, l0)
+
+    return eta, dz_dt
 
 
 def calculate_adiabatic_condition_electric(df, epsilon_phi, K=5):
@@ -291,7 +376,7 @@ def plotter(path_, fname_, show_growth_rate=False):
         parameter_dict = extract_parameters_by_file_name(fname)
         eps = parameter_dict.get("eps", "N/A")
 
-        adiabatic_cond, dz_dt = calculate_adiabatic_condition(df)
+        adiabatic_cond, dz_dt = calculate_adiabatic_condition(df, fname)
         growth_rate = np.gradient(adiabatic_cond, df["timestamp"].values)
 
         plot_data.append((eps, x_axis_data, y_axis_data, fname))
@@ -382,7 +467,7 @@ def plotter(path_, fname_, show_growth_rate=False):
         )
 
     # First plot styling
-    ax1.set_ylabel(r"$J = \oint v_{x} \, \mathrm{d}x$", fontsize=12)
+    ax1.set_ylabel(r"$J = \oint v_{R} \, \mathrm{d}R$", fontsize=12)
     ax1.set_title("Adiabatic Invariant", pad=15)
     ax1.legend(loc="upper right", framealpha=0.9, edgecolor="#CCCCCC", fancybox=True)
 
@@ -524,7 +609,7 @@ def plotter(path_, fname_, show_growth_rate=False):
     # Save plots with timestamp
     save_plots_with_timestamp(fig, "Adiabatic_Condition_and_Growth_Rate", parameters)
 
-    plt.show()
+    # plt.show()
 
 
 def perform_adiabatic_calculations(chosen_csv, auto_scale=True, y_margin=1e-17):
@@ -591,9 +676,9 @@ def perform_adiabatic_calculations(chosen_csv, auto_scale=True, y_margin=1e-17):
         )
 
     # Adjust plot layout to accommodate legend without overlapping plots
-    plt.legend(loc="upper left", bbox_to_anchor=(1, 1))
+    plt.legend(loc="lower left", bbox_to_anchor=(1, 1))
     plt.subplots_adjust(right=0.8)
-    plt.show()
+    # plt.show()
 
 
 def calculate_amplitude_and_average(df, peak_indices):
@@ -685,7 +770,7 @@ def plot_amplitude_analysis(ax, timestamps, amplitudes, running_averages, color)
     ax.legend()
 
 
-def plot_amplitude_analysis_separate(path_, fname_, show_plot=True):
+def plot_amplitude_analysis_separate(path_, fname_, show_plot=False):
     """
     Create a separate plot for amplitude analysis with dual y-axes and enhanced visuals.
     Legend positioned inside the graph area in the upper left corner.
