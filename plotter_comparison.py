@@ -113,7 +113,7 @@ df_1d = pd.read_csv(file_1d)
 
 time_2d = df_2d["timestamp"]
 z_2d = df_2d["z"]
-time_1d = df_1d["time"]
+time_1d = df_1d["timestamp"]
 z_1d = df_1d["z"]
 
 interpolated_z_1d = np.interp(time_2d, time_1d, z_1d)
@@ -232,5 +232,9 @@ ax.text(
 
 # Adjust layout
 plt.tight_layout()
+
+# Save the plots
 save_plots_with_timestamp(fig, "1D_2D_z_solutions_comparison")
+
+# Display the plot
 plt.show()

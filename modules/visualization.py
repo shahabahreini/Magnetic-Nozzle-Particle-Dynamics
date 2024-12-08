@@ -34,15 +34,30 @@ def get_axis_label(param):
 def save_plots_with_timestamp(
     fig, base_name, parameters=None, plots_folder=config.plots_folder
 ):
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_file_name = f"{base_name}_{timestamp}"
+    """
+    Save plots with timestamp and parameters in specified folders.
 
+    Args:
+        fig: matplotlib figure object
+        base_name: base name for the saved file
+        parameters: dictionary of parameters to include in filename
+        plots_folder: root folder for saving plots
+    """
+    # Get current timestamp
+    timestamp = datetime.datetime.now()
+    timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
+    save_file_name = f"{base_name}_{timestamp_str}"
+
+    # Create root plots folder
     os.makedirs(plots_folder, exist_ok=True)
 
+    # Save in both PDF and PNG formats
     for ext in [".pdf", ".png"]:
+        # Create format-specific subdirectory
         subdir = os.path.join(plots_folder, ext.lstrip("."))
         os.makedirs(subdir, exist_ok=True)
 
+        # Construct filename with parameters if provided
         if parameters:
             param_str = "_".join([f"{k}{v}" for k, v in parameters.items()])
             filename = f"{save_file_name}_{param_str}{ext}"
@@ -51,15 +66,33 @@ def save_plots_with_timestamp(
 
         path_to_save = os.path.join(subdir, filename)
 
+        # Create metadata based on file format
+        if ext == ".pdf":
+            metadata = {
+                "Creator": "Scientific Visualization Script",
+                "CreationDate": timestamp,  # datetime object for PDF
+                "Title": base_name,
+                "Author": "Numerical Simulation Analysis",
+                "Subject": "Particle Trajectory Analysis",
+                "Keywords": "electromagnetic fields, magnetic nozzles, particle trajectory",
+            }
+        else:  # PNG format
+            metadata = {
+                "Creator": "Scientific Visualization Script",
+                "CreationDate": timestamp.isoformat(),  # string for PNG
+                "Title": base_name,
+                "Author": "Numerical Simulation Analysis",
+                "Subject": "Particle Trajectory Analysis",
+                "Keywords": "electromagnetic fields, magnetic nozzles, particle trajectory",
+            }
+
+        # Save with format-specific metadata
         fig.savefig(
             path_to_save,
             dpi=600,
             bbox_inches="tight",
             pad_inches=0.1,
-            metadata={
-                "Creator": "Scientific Visualization Script",
-                "Date": datetime.datetime.now().isoformat(),
-            },
+            metadata=metadata,
         )
 
 
