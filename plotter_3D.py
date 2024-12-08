@@ -385,31 +385,9 @@ def main():
         Panel("Welcome to the Particle Trajectory Plotter", style="bold magenta")
     )
 
-    # Get the folder path
-    folder_path = Prompt.ask("Enter the folder path containing CSV files", default=".")
-
     # List CSV files in the folder
-    csv_files = list_csv_files(folder_path)
-
-    if not csv_files:
-        console.print("[red]No CSV files found in the specified folder.[/red]")
-        return
-
-    # Display available CSV files in a table
-    table = Table(title=f"CSV Files in '{folder_path}'", box=box.ROUNDED)
-    table.add_column("#", style="cyan", no_wrap=True)
-    table.add_column("Filename", style="magenta")
-
-    for i, file in enumerate(csv_files, 1):
-        table.add_row(str(i), file)
-
-    # Ask user to select files
-    selected_indices = Prompt.ask(
-        "Enter the numbers of the files you want to plot (comma-separated, e.g., 1,2,3)",
-        default="1",
-    )
-    selected_indices = [int(i.strip()) - 1 for i in selected_indices.split(",")]
-    selected_files = [csv_files[i] for i in selected_indices]
+    folder_path, selected_files = list_folders()
+    print(folder_path, selected_files)
 
     # Read the first CSV file to get available parameters
     df = pd.read_csv(os.path.join(folder_path, selected_files[0]))

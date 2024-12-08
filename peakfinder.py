@@ -589,7 +589,7 @@ def perform_adiabatic_calculations(chosen_csv, auto_scale=True, y_margin=1e-17):
     y_data = []
 
     # Plot adiabatic calculation results for each file
-    if is_multi_files:
+    if config.is_multi_files:
         for _, label, file_path in file_data:
             y_data.extend(plot_adiabatic_results(file_path, label))
     else:
@@ -726,7 +726,7 @@ def plot_amplitude_analysis_separate(path_, fname_, show_plot=False):
     ax2 = ax1.twinx()
 
     # File handling
-    if is_multi_files:
+    if config.is_multi_files:
         path_ = os.path.join(os.path.dirname(__file__), target_folder_multi_files)
         filelst = os.listdir(path_)
     else:
@@ -879,4 +879,4 @@ if __name__ == "__main__":
         perform_adiabatic_calculations(chosen_csv)
 
     if config.show_amplitude_analysis:
-        plot_amplitude_analysis_separate(fpath, chosen_csv)
+        plot_amplitude_analysis_separate(config.target_folder, chosen_csv)

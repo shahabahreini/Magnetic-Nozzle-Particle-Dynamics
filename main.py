@@ -8,6 +8,7 @@ import time
 import pkg_resources
 import subprocess
 import importlib.util
+from datetime import datetime
 from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
@@ -20,11 +21,9 @@ from rich.prompt import IntPrompt, Confirm  # Add these to existing imports
 # Import functions from your existing files
 from plotter_2D import plot_csv_files
 from plotter_3D import Plotter
-from peakfinder import (
-    plotter,
-    plot_amplitude_analysis_separate,
-    perform_adiabatic_calculations,
-)
+from peakfinder import *
+import glob
+import psutil
 
 
 def list_folders():
@@ -353,36 +352,237 @@ class TerminalUI:
         )
 
     def run_peak_analysis(self):
-        """Interactive peak analysis interface"""
-        console.print("\n[bold]Peak Analysis[/bold]")
+        """Interactive peak analysis interface with enhanced UX"""
 
-        # Get file path
-        folders = list_folders()
-        table = Table(title="Available Folders")
-        table.add_column("Number", style="cyan")
-        table.add_column("Folder", style="magenta")
-        for i, folder in enumerate(folders, 1):
-            table.add_row(str(i), folder)
-        console.print(table)
+        def display_header():
+            console.print(
+                Panel(
+                    "[bold blue]Peak Analysis Interface[/bold blue]\n"
+                    "[dim]Analyze particle trajectory peaks and adiabatic conditions[/dim]",
+                    box=box.DOUBLE,
+                    style="bold",
+                    border_style="blue",
+                )
+            )
 
-        folder_idx = IntPrompt.ask("Select folder number", default=1)
-        folder_path = folders[folder_idx - 1]
+        def load_configuration():
+            """Load and validate configuration settings"""
+            try:
+                config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
+                config = Configuration(config_path)
+                return config
+            except Exception as e:
+                console.print(f"[red]Error loading configuration: {str(e)}[/red]")
+                return None
 
-        files = list_csv_files(folder_path)
-        table = Table(title="Available CSV Files")
-        table.add_column("Number", style="cyan")
-        table.add_column("Filename", style="magenta")
-        for i, file in enumerate(files, 1):
-            table.add_row(str(i), file)
-        console.print(table)
+        def select_input_files(config):
+            """Enhanced file selection interface"""
+            if not config.is_multi_files:
+                with Progress() as progress:
+                    task = progress.add_task(
+                        "[cyan]Scanning for CSV files...", total=100
+                    )
+                    chosen_csv = search_for_export_csv()
+                    progress.update(task, completed=100)
 
-        file_idx = IntPrompt.ask("Select file number", default=1)
-        selected_file = files[file_idx - 1]
+                    if not chosen_csv:
+                        console.print("[red]No CSV file selected.[/red]")
+                        return None
 
-        show_growth = Confirm.ask("Show growth rate?", default=False)
+                    return os.path.basename(chosen_csv).replace(".csv", "")
+            else:
+                return "multi_plot"
 
-        # Execute analysis
-        plotter(folder_path, selected_file, show_growth_rate=show_growth)
+        def display_analysis_options(config):
+            """Display available analysis options in an enhanced table"""
+            table = Table(
+                title="Available Analysis Options",
+                box=box.ROUNDED,
+                show_header=True,
+                header_style="bold magenta",
+                title_style="bold blue",
+            )
+
+            table.add_column("Option", style="cyan", justify="center")
+            table.add_column("Analysis Type", style="magenta")
+            table.add_column("Status", style="green", justify="center")
+            table.add_column("Description", style="yellow")
+
+            options = [
+                (
+                    "1",
+                    "Integral Analysis",
+                    config.calculate_integral,
+                    "Calculate and analyze integral properties of the trajectory",
+                ),
+                (
+                    "2",
+                    "Traditional Magnetic Moment",
+                    config.calculate_traditional_magneticMoment,
+                    "Analyze magnetic moment using traditional methods",
+                ),
+                (
+                    "3",
+                    "Amplitude Analysis",
+                    config.show_amplitude_analysis,
+                    "Analyze amplitude variations over time",
+                ),
+                (
+                    "4",
+                    "Run All Enabled Analyses",
+                    True,
+                    "Execute all enabled analysis types",
+                ),
+            ]
+
+            for opt, name, enabled, desc in options:
+                status = (
+                    "[green]✓ Enabled[/green]" if enabled else "[red]✗ Disabled[/red]"
+                )
+                table.add_row(opt, name, status, desc)
+
+            console.print(table)
+
+        def run_analysis(choice, config, chosen_csv):
+            """Execute selected analysis with enhanced progress tracking"""
+            analyses = {
+                1: ("Integral Analysis", plotter, config.calculate_integral),
+                2: (
+                    "Magnetic Moment Analysis",
+                    perform_adiabatic_calculations,
+                    config.calculate_traditional_magneticMoment,
+                ),
+                3: (
+                    "Amplitude Analysis",
+                    plot_amplitude_analysis_separate,
+                    config.show_amplitude_analysis,
+                ),
+            }
+
+            try:
+                with Progress() as progress:
+                    if choice == 4:
+                        # Run all enabled analyses
+                        total_enabled = sum(
+                            1 for _, _, enabled in analyses.values() if enabled
+                        )
+                        if total_enabled == 0:
+                            console.print(
+                                "[yellow]No analyses are currently enabled in configuration.[/yellow]"
+                            )
+                            return False
+
+                        overall_progress = progress.add_task(
+                            "[blue]Overall Progress", total=total_enabled
+                        )
+
+                        for analysis_name, func, enabled in analyses.values():
+                            if enabled:
+                                task = progress.add_task(
+                                    f"[cyan]Running {analysis_name}...", total=100
+                                )
+
+                                # Run the analysis
+                                if analysis_name == "Integral Analysis":
+                                    func(config.target_folder, chosen_csv)
+                                else:
+                                    func(chosen_csv)
+
+                                progress.update(task, completed=100)
+                                progress.update(overall_progress, advance=1)
+
+                                console.print(
+                                    f"[green]✓ {analysis_name} completed[/green]"
+                                )
+
+                    else:
+                        # Run single analysis
+                        analysis_name, func, enabled = analyses.get(
+                            choice, (None, None, False)
+                        )
+
+                        if not enabled:
+                            console.print(
+                                f"[yellow]The selected analysis is not enabled in configuration.[/yellow]"
+                            )
+                            return False
+
+                        task = progress.add_task(
+                            f"[cyan]Running {analysis_name}...", total=100
+                        )
+
+                        # Run the analysis
+                        if analysis_name == "Integral Analysis":
+                            func(config.target_folder, chosen_csv)
+                        else:
+                            func(chosen_csv)
+
+                        progress.update(task, completed=100)
+                        console.print(f"[green]✓ {analysis_name} completed[/green]")
+
+                return True
+
+            except Exception as e:
+                console.print(
+                    Panel(
+                        f"[red]Error during analysis:[/red]\n{str(e)}",
+                        title="Error",
+                        border_style="red",
+                    )
+                )
+                return False
+
+        # Main execution flow
+        display_header()
+
+        # Load configuration
+        config = load_configuration()
+        if not config:
+            return
+
+        # Select input files with external progress bar
+        with Progress() as progress:
+            chosen_csv = None
+            if not config.is_multi_files:
+                chosen_csv = search_for_export_csv(
+                    external_progress=progress  # Pass the progress bar
+                )
+                if not chosen_csv:
+                    return
+                chosen_csv = os.path.basename(chosen_csv).replace(".csv", "")
+            else:
+                chosen_csv = "multi_plot"
+
+        # Select input files
+        chosen_csv = select_input_files(config)
+        if not chosen_csv:
+            return
+
+        # Display analysis options
+        display_analysis_options(config)
+
+        # Get user choice
+        choice = IntPrompt.ask(
+            "\nSelect analysis type", choices=["1", "2", "3", "4"], default="4"
+        )
+
+        # Run analysis
+        if run_analysis(choice, config, chosen_csv):
+            console.print(
+                Panel(
+                    "[green]Analysis completed successfully![/green]\n"
+                    "[dim]Press Enter to return to main menu[/dim]",
+                    box=box.ROUNDED,
+                )
+            )
+        else:
+            console.print(
+                Panel(
+                    "[yellow]Analysis completed with warnings or errors.[/yellow]\n"
+                    "[dim]Press Enter to return to main menu[/dim]",
+                    box=box.ROUNDED,
+                )
+            )
 
     def run_amplitude_analysis(self):
         """Interactive amplitude analysis interface"""
@@ -463,27 +663,117 @@ class TerminalUI:
         print(self.term.clear)
 
     def display_header(self):
-        """Display the application header"""
-        console.print(
-            Panel(
-                "[bold blue]Particle Trajectory Analysis Tool[/bold blue]\n"
-                "[dim]Use ↑/↓ arrows to navigate, Enter to select, q to quit[/dim]",
-                box=box.DOUBLE,
-            )
+        """Display enhanced application header"""
+        header_text = Panel(
+            "[bold blue]Particle Trajectory Analysis Tool[/bold blue]\n"
+            "[dim]Navigation: [cyan]↑/↓[/cyan] arrows to move, "
+            "[cyan]Enter[/cyan] to select, [cyan]q[/cyan] to quit, "
+            "[cyan]f[/cyan] to filter files[/dim]",
+            box=box.DOUBLE,
+            style="bold",
+            border_style="blue",
         )
+        console.print(header_text)
 
     def display_menu(self):
-        """Display the main menu"""
-        table = Table(box=box.SIMPLE)
-        table.add_column("Selection", style="cyan")
-        table.add_column("Function", style="magenta")
-        table.add_column("Description", style="green")
+        """Display enhanced main menu"""
+        menu_table = Table(
+            box=box.ROUNDED,
+            show_header=True,
+            header_style="bold magenta",
+            title="Main Menu",
+            title_style="bold blue",
+        )
+
+        menu_table.add_column("", style="cyan", justify="center", width=3)
+        menu_table.add_column("Function", style="green", width=25)
+        menu_table.add_column("Description", style="yellow")
 
         for i, option in enumerate(self.options):
-            marker = ">" if i == self.current_selection else " "
-            table.add_row(marker, option.name, option.description)
+            marker = "►" if i == self.current_selection else " "
+            menu_table.add_row(marker, option.name, option.description)
 
-        console.print(table)
+        console.print(menu_table)
+
+    def display_status_bar(self):
+        """Display status bar with system information"""
+        status = Panel(
+            f"[cyan]System Status:[/cyan] Running | "
+            f"[green]Memory Usage:[/green] {psutil.Process().memory_info().rss / 1024 / 1024:.1f} MB | "
+            f"[yellow]Files Loaded:[/yellow] {len(glob.glob('*.csv'))} CSV",
+            box=box.HORIZONTALS,
+            style="dim",
+        )
+        console.print(status)
+
+    def filter_files(self, files: List[str], pattern: str = "") -> List[str]:
+        """
+        Filter files based on search pattern
+
+        Args:
+            files (List[str]): List of files to filter
+            pattern (str): Search pattern
+
+        Returns:
+            List[str]: Filtered list of files
+        """
+        if not pattern:
+            return files
+
+        filtered = [f for f in files if pattern.lower() in f.lower()]
+
+        if not filtered:
+            console.print(f"[yellow]No files matching pattern '{pattern}'[/yellow]")
+
+        return filtered
+
+    def prompt_file_selection(self, files: List[str]) -> str:
+        """
+        Enhanced file selection prompt with filtering
+
+        Args:
+            files (List[str]): List of files to choose from
+
+        Returns:
+            str: Selected filename
+        """
+        while True:
+            console.print("\n[bold cyan]File Selection[/bold cyan]")
+            console.print("Enter 'f' to filter, 'q' to quit, or file number to select")
+
+            choice = Prompt.ask("Choice")
+
+            if choice.lower() == "f":
+                pattern = Prompt.ask("Enter search pattern")
+                filtered = self.filter_files(files, pattern)
+                if filtered:
+                    return self.prompt_file_selection(filtered)
+            elif choice.lower() == "q":
+                return None
+            else:
+                try:
+                    idx = int(choice) - 1
+                    if 0 <= idx < len(files):
+                        return files[idx]
+                except ValueError:
+                    pass
+
+            console.print("[red]Invalid selection[/red]")
+
+    def run_with_progress(self, func, *args, **kwargs):
+        """
+        Run a function with progress indication
+        """
+        with Progress() as progress:
+            task = progress.add_task("[cyan]Processing...", total=100)
+            try:
+                result = func(*args, **kwargs)
+                progress.update(task, completed=100)
+                return result
+            except Exception as e:
+                progress.update(task, completed=100, description="[red]Error![/red]")
+                console.print(f"[red]Error: {str(e)}[/red]")
+                return None
 
 
 def main():

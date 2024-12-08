@@ -4,6 +4,11 @@ from rich.console import Console
 from rich.table import Table
 from rich.prompt import Prompt, IntPrompt
 from rich.progress import Progress
+from rich.panel import Panel
+from rich.layout import Layout
+from rich.text import Text
+from rich.text import Text
+from rich import box
 import matplotlib.pyplot as plt
 import re
 from datetime import datetime
@@ -15,9 +20,106 @@ from modules import (
     list_csv_files,  # from file_utils.py
     list_folders,  # from file_utils.py
     find_common_and_varying_params,
+    Configuration,
 )
 
 console = Console()
+config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
+config = Configuration(config_path)
+
+
+def create_parameter_selector(parameters, selected_params=None):
+    """
+    Create an interactive parameter selector with a better UI.
+
+    Args:
+        parameters (list): List of available parameters
+        selected_params (list, optional): List of already selected parameters to exclude
+
+    Returns:
+        tuple: (selected_parameter, selected_parameter_name)
+    """
+    console = Console()
+
+    # Create a table for parameter display
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("Choice", style="cyan", justify="center")
+    table.add_column("Parameter", style="green")
+    table.add_column("Description", style="yellow")
+
+    # Parameter descriptions (you can expand this dictionary)
+    param_descriptions = {
+        "timestamp": "Time value for the simulation",
+        "drho": "Change in radial coordinate",
+        "dz": "Change in axial coordinate",
+        "rho": "Radial coordinate",
+        "z": "Axial coordinate",
+        "omega_rho": "Radial angular velocity",
+        "omega_z": "Axial angular velocity",
+    }
+
+    # Filter out already selected parameters
+    available_params = [
+        p for p in parameters if selected_params is None or p not in selected_params
+    ]
+
+    # Add rows to the table
+    for i, param in enumerate(available_params, 1):
+        description = param_descriptions.get(param, "No description available")
+        table.add_row(str(i), param, description)
+
+    # Print the layout
+    console.print(table)
+
+    # Get user input with validation
+    while True:
+        try:
+            choice = IntPrompt.ask(
+                "Enter your choice",
+                choices=[str(i) for i in range(1, len(available_params) + 1)],
+            )
+            selected_param = available_params[choice - 1]
+            return choice, selected_param
+        except (ValueError, IndexError):
+            console.print("[red]Invalid choice. Please try again.[/red]")
+
+
+def select_plotting_parameters(parameters):
+    """
+    Main function to handle the parameter selection process.
+
+    Args:
+        parameters (list): List of available parameters
+
+    Returns:
+        tuple: (x_param, y_param)
+    """
+    console = Console()
+    selected_params = []
+    axis_names = ["x-axis", "y-axis"]
+    final_selections = {}
+
+    for axis in axis_names:
+        console.print(f"\n[bold]Selecting parameter for {axis}:[/bold]")
+        _, selected_param = create_parameter_selector(parameters, selected_params)
+        selected_params.append(selected_param)
+        final_selections[axis] = selected_param
+
+        # Show confirmation
+        console.print(f"\n[green]Selected {axis} parameter: {selected_param}[/green]")
+
+    # Show final selection summary
+    console.print("\n[bold]Final Parameter Selection:[/bold]")
+    summary_table = Table(show_header=True, header_style="bold magenta")
+    summary_table.add_column("Axis", style="cyan")
+    summary_table.add_column("Parameter", style="green")
+
+    for axis, param in final_selections.items():
+        summary_table.add_row(axis, param)
+
+    console.print(summary_table)
+
+    return final_selections["x-axis"], final_selections["y-axis"]
 
 
 def plot_csv_files(files, folder, x_param, y_param, mode, progress, task):
@@ -25,35 +127,69 @@ def plot_csv_files(files, folder, x_param, y_param, mode, progress, task):
         f"\n[green]Generating plot: {get_axis_label(y_param)} vs {get_axis_label(x_param)}[/green]"
     )
 
-    # Check if multiple files are being processed
+    # Initialize common_params and varying_params before the loop
+    common_params = {}
+    varying_params = {}
+
+    # Determine if we're in multi-file mode
     is_multi_files = len(files) > 1
 
-    # Find common and varying parameters
-    common_params, varying_params, sorted_files = find_common_and_varying_params(files)
+    # If in multi-file mode, get common and varying parameters first
+    if is_multi_files:
+        common_params, varying_params, sorted_files = find_common_and_varying_params(
+            files
+        )
+        files_to_process = sorted_files
+    else:
+        files_to_process = files
 
-    # Update progress bar (10% for reading files)
-    progress.update(task, advance=20)
+    # Create the plot
+    plt.figure(figsize=(10, 6))
 
-    for file in sorted_files:
+    # Process each file
+    for file in files_to_process:
+        # Read the CSV file
         df = pd.read_csv(os.path.join(folder, file))
 
-        x_ = df[x_param]
-        y_ = df[y_param]
+        # Validate columns
+        missing_columns = []
+        for param in [x_param, y_param]:
+            if param not in df.columns:
+                missing_columns.append(param)
 
-        # Use only the sorted varying parameters in the legend
-        varying_param_str = ", ".join(varying_params[file])
+        if missing_columns:
+            console.print(
+                f"[red]Error: The following columns are missing in the CSV file {file}:[/red]"
+            )
+            console.print(f"[red]{', '.join(missing_columns)}[/red]")
+            console.print(
+                f"[yellow]Available columns: {', '.join(df.columns)}[/yellow]"
+            )
+            return
 
-        plt.plot(x_, y_, label=varying_param_str if is_multi_files else None)
+        # Plot the data
+        if is_multi_files:
+            # Use varying parameters for legend in multi-file mode
+            varying_param_str = ", ".join(varying_params[file])
+            plt.plot(df[x_param], df[y_param], label=varying_param_str)
+        else:
+            # Simple plot for single file mode
+            plt.plot(df[x_param], df[y_param])
 
     # Update progress bar (40% for generating the plot)
     progress.update(task, advance=40)
 
-    # Title includes common parameters
-    common_param_str = ", ".join(
-        [f"{get_axis_label(k)}={v}" for k, v in common_params.items()]
-    )
+    # Set plot title and labels
     plt.suptitle(f"{get_axis_label(y_param)} vs {get_axis_label(x_param)}", fontsize=12)
-    plt.title(common_param_str, loc="right", fontsize=8, color="grey", style="italic")
+
+    # Add common parameters to title if in multi-file mode
+    if is_multi_files and common_params:
+        common_param_str = ", ".join(
+            [f"{get_axis_label(k)}={v}" for k, v in common_params.items()]
+        )
+        plt.title(
+            common_param_str, loc="right", fontsize=8, color="grey", style="italic"
+        )
 
     plt.xlabel(get_axis_label(x_param))
     plt.ylabel(get_axis_label(y_param))
@@ -99,67 +235,29 @@ def main():
     if mode_choice == 1:
         # Folder selection mode
         console.print("[bold]Select a folder containing CSV files:[/bold]")
-        folders = list_folders()
-        folder_choice = IntPrompt.ask(
-            "Enter a folder number",
-            choices=[str(i) for i in range(1, len(folders) + 1)],
-        )
-        selected_folder = folders[folder_choice - 1]
-
-        files = list_csv_files(os.path.join(".", selected_folder))
-
-        console.print(
-            "\n[bold]Select files to plot (enter numbers separated by space or press Enter to select all):[/bold]"
-        )
-        file_choice = Prompt.ask("Enter file numbers or press Enter")
-        if file_choice:
-            try:
-                chosen_indices = [int(i) - 1 for i in file_choice.split()]
-                selected_files = [
-                    files[i] for i in chosen_indices if 0 <= i < len(files)
-                ]
-                if not selected_files:
-                    raise ValueError("Invalid file numbers")
-            except ValueError:
-                console.print(
-                    "[red]Invalid input! Please enter valid file numbers separated by space.[/red]"
-                )
-                return
-        else:
-            selected_files = files  # Plot all files if Enter is pressed without input
+        selected_folder, selected_files = list_folders()
         folder_path = os.path.join(".", selected_folder)
         mode = "multimode"
 
     else:
         # Single file selection from the current directory
         folder_path = os.getcwd()  # Current directory
-        files = list_csv_files(folder_path)
-        file_choice = IntPrompt.ask(
-            "Choose a file (enter a number from the list)",
-            choices=[str(i) for i in range(1, len(files) + 1)],
-        )
-        selected_files = [files[file_choice - 1]]
+        selected_file, all_files = list_csv_files(folder_path)
+        selected_files = [selected_file]
+        print(selected_files)
         mode = "singlemode"
 
     # Parameter options
-    x_param_options = ["timestamp", "drho", "dz", "rho", "z", "omega_rho", "omega_z"]
-    y_param_options = x_param_options.copy()
+    param_options = ["timestamp", "drho", "dz", "rho", "z", "omega_rho", "omega_z"]
 
-    console.print("\n[bold]Select the x-axis parameter:[/bold]")
-    for i, param in enumerate(x_param_options, 1):
-        console.print(f"{i}. {param}")
-    x_param_choice = IntPrompt.ask(
-        "Enter your choice",
-        choices=[str(i) for i in range(1, len(x_param_options) + 1)],
-    )
-
-    console.print("\n[bold]Select the y-axis parameter:[/bold]")
-    for i, param in enumerate(y_param_options, 1):
-        console.print(f"{i}. {param}")
-    y_param_choice = IntPrompt.ask(
-        "Enter your choice",
-        choices=[str(i) for i in range(1, len(y_param_options) + 1)],
-    )
+    try:
+        x_param, y_param = select_plotting_parameters(param_options)
+        print(x_param, y_param)
+        print(f"\nFinal selection - X: {x_param}, Y: {y_param}")
+    except KeyboardInterrupt:
+        print("\nSelection cancelled by user.")
+    except Exception as e:
+        print(f"\nAn error occurred: {str(e)}")
 
     # Progress bar for plotting (representing file reading, plot generation, saving, and displaying)
     with Progress() as progress:
@@ -167,8 +265,8 @@ def main():
         plot_csv_files(
             selected_files,
             folder_path,
-            x_param_options[x_param_choice - 1],
-            y_param_options[y_param_choice - 1],
+            x_param,
+            y_param,
             mode,
             progress,
             task,
