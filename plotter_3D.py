@@ -12,14 +12,15 @@ from rich.panel import Panel
 from rich.prompt import Prompt, IntPrompt, Confirm
 from rich.progress import Progress
 from rich import box
-from lib import (
+from modules import (
     search_for_export_csv,
     extract_parameters_by_file_name,
     list_csv_files,
     list_folders,
-    find_common_and_varying_params,
+    find_common_and_varying_params,  # This is now properly imported
 )
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+
 
 console = Console()
 

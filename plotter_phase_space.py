@@ -11,7 +11,7 @@ delta_star = 0.01
 
 # Read the CSV data
 df = pd.read_csv(
-    "2D_export-eps0.005-epsphi0.001-kappa0.01-deltas0.01-beta0.0-alpha90.0-theta0.0-time350.0.csv"
+    "3D_export-eps0.0002-epsphi0.0-kappa0.01-deltas0.01-beta0.0-alpha90.0-theta3.0-time3000.0.csv"
 )
 
 

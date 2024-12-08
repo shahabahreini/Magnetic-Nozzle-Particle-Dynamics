@@ -1,24 +1,28 @@
+# File naming and format
 save_file_name: "2D_omega"
 save_file_extension: ".svg"
+
+# File handling settings
 is_multi_files: false
-show_extremums_peaks: false
-based_on_guiding_center: true
 target_folder_multi_files: "./csv/"
 plots_folder: "plots"
+
+# Analysis settings
 extremum_of: "rho"
+based_on_guiding_center: true
 calculate_integral: true
 calculate_traditional_magneticMoment: false
 show_extremums_peaks: false
-SHARE_X_AXIS: true
 show_amplitude_analysis: true
-simulation_parameters:
-  eps: 0.0177
-  epsphi: 0.0
-  kappa: 1.0
-  deltas: 1.0
-  beta: 90
-  alpha: 30
-  theta: 30
-  time: 100
+
+# Plot settings
+SHARE_X_AXIS: true
+
+# Simulation parameters
 simulation_time: 100
 method: "Feagin14 Method"
+
+# Simulation parameters dictionary (if needed)
+simulation_parameters:
+  time: 100
+  method: "Feagin14 Method"

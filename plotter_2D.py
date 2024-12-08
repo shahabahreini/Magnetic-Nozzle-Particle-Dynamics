@@ -8,11 +8,12 @@ import matplotlib.pyplot as plt
 import re
 from datetime import datetime
 from collections import defaultdict
-from lib import (
-    get_axis_label,
-    list_csv_files,
-    list_folders,
-    extract_parameters_by_file_name,
+
+# Replace the old lib import with specific imports from particle_sim
+from modules import (
+    get_axis_label,  # from visualization.py
+    list_csv_files,  # from file_utils.py
+    list_folders,  # from file_utils.py
     find_common_and_varying_params,
 )
 

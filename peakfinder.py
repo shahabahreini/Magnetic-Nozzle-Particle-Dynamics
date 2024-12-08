@@ -3,8 +3,6 @@ import re
 import math
 import matplotlib.pyplot as plt
 import os
-from lib import *
-import lib
 import numpy as np
 import datetime
 
@@ -15,96 +13,18 @@ import yaml
 from plotter_violation import load_and_calculate_variation
 import matplotlib.patches as mpatches
 from scipy.integrate import cumulative_trapezoid
+from modules import (
+    save_plots_with_timestamp,
+    Configuration,
+    calculate_ad_mio,
+    read_exported_csv_2Dsimulation,
+    adiabtic_calculator,
+    extract_parameters_by_file_name,
+    search_for_export_csv,
+)
 
-
-# ---------------------------------- Config ---------------------------------- #
-class Configuration:
-    def __init__(self, config_path):
-        self.config = self.load_config(config_path)
-        self.save_file_name = self.config["save_file_name"]
-        self.save_file_extension = self.config["save_file_extension"]
-        self.is_multi_files = self.config["is_multi_files"]
-        self.target_folder = self.config["target_folder_multi_files"]
-        self.plots_folder = self.config["plots_folder"]
-        self.parameter_dict = self.config["simulation_parameters"]
-        self.extremum_of = self.config["extremum_of"]
-        self.based_on_guiding_center = self.config["based_on_guiding_center"]
-        self.calculate_integral = self.config["calculate_integral"]
-        self.share_x_axis = self.config["SHARE_X_AXIS"]
-        self.calculate_traditional_magneticMoment = self.config[
-            "calculate_traditional_magneticMoment"
-        ]
-        self.show_extremums_peaks = self.config["show_extremums_peaks"]
-        self.show_amplitude_analysis = self.config["show_amplitude_analysis"]
-
-    def load_config(self, config_path):
-        with open(config_path, "r") as config_file:
-            return yaml.safe_load(config_file)
-
-
-config = Configuration("config.yaml")
-
-# Use values from the config file
-save_file_name = config.save_file_name
-save_file_extension = config.save_file_extension
-is_multi_files = config.is_multi_files
-target_folder_multi_files = config.target_folder
-plots_folder = config.plots_folder
-parameter_dict = config.parameter_dict
-fpath = config.target_folder
-extremum_of = config.extremum_of
-show_extremums_peaks = config.show_extremums_peaks
-share_x_axis = config.share_x_axis
-
-# ------------------------------------ --- ----------------------------------- #
-
-
-def save_plots_with_timestamp(fig, base_name, parameters=None):
-    """
-    Save plots with timestamp and parameters in organized directories.
-
-    Parameters:
-    -----------
-    fig : matplotlib.figure.Figure
-        The figure to save
-    base_name : str
-        Base name for the file
-    parameters : dict, optional
-        Dictionary of parameters to include in filename
-    """
-    # Generate timestamp filename
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_file_name = f"{base_name}_{timestamp}"
-
-    # Create plots directory if it doesn't exist
-    os.makedirs(plots_folder, exist_ok=True)
-
-    # Save with multiple extensions
-    for ext in [save_file_extension, ".png"]:
-        # Create subdirectory for file type if it doesn't exist
-        subdir = os.path.join(plots_folder, ext.lstrip("."))
-        os.makedirs(subdir, exist_ok=True)
-
-        # Generate filename with parameters if available
-        if parameters:
-            param_str = "_".join([f"{k}{v}" for k, v in parameters.items()])
-            filename = f"{save_file_name}_{param_str}{ext}"
-        else:
-            filename = f"{save_file_name}{ext}"
-
-        path_to_save = os.path.join(subdir, filename)
-
-        # Save figure with only supported metadata
-        fig.savefig(
-            path_to_save,
-            dpi=600,
-            bbox_inches="tight",
-            pad_inches=0.1,
-            metadata={
-                "Creator": "Scientific Visualization Script",
-                "Date": datetime.datetime.now().isoformat(),
-            },
-        )
+config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
+config = Configuration(config_path)
 
 
 def plot_extremums(results):
@@ -344,8 +264,8 @@ def plotter(path_, fname_, show_growth_rate=False):
     file_data = []
 
     # File handling
-    if is_multi_files:
-        path_ = os.path.join(os.path.dirname(__file__), target_folder_multi_files)
+    if config.is_multi_files:
+        path_ = os.path.join(os.path.dirname(__file__), config.target_folder)
         filelst = os.listdir(path_)
     else:
         path_ = ""
@@ -353,7 +273,7 @@ def plotter(path_, fname_, show_growth_rate=False):
 
     # Data collection
     for fname in filelst:
-        if is_multi_files:
+        if config.is_multi_files:
             file_path = os.path.join(fpath, fname)
         else:
             file_path = os.path.join(path_, fname)
@@ -365,12 +285,14 @@ def plotter(path_, fname_, show_growth_rate=False):
         file_data.append(file_path)
 
         # Read and process data
-        df = lib.read_exported_csv_2Dsimulation(path_, fname)
+        df = read_exported_csv_2Dsimulation(path_, fname)
         varibale_to_find_peaks_with = df[config.extremum_of]
-        peak_idxx = peakfinder_(varibale_to_find_peaks_with, show_extremums_peaks)
+        peak_idxx = peakfinder_(
+            varibale_to_find_peaks_with, config.show_extremums_peaks
+        )
 
         # Calculate necessary values
-        y_axis_data = lib.adiabtic_calculator(df["drho"], df["rho"], peak_idxx)
+        y_axis_data = adiabtic_calculator(df["drho"], df["rho"], peak_idxx)
         x_axis_data = [df["timestamp"].tolist()[i] for i in peak_idxx[1:]]
 
         parameter_dict = extract_parameters_by_file_name(fname)
@@ -391,7 +313,7 @@ def plotter(path_, fname_, show_growth_rate=False):
     # Create figure with enhanced layout
     fig = plt.figure(figsize=(12, 10), dpi=150)
 
-    if share_x_axis:
+    if config.share_x_axis:
         gs = plt.GridSpec(2, 1, height_ratios=[1, 1], hspace=0.1)
         ax1 = fig.add_subplot(gs[0])
         ax2 = fig.add_subplot(gs[1], sharex=ax1)
@@ -578,7 +500,7 @@ def plotter(path_, fname_, show_growth_rate=False):
     )
 
     # X-axis labels based on sharing setting
-    if share_x_axis:
+    if config.share_x_axis:
         ax2.set_xlabel(r"$\tau$", fontsize=12)
     else:
         ax1.set_xlabel(r"$\tau$", fontsize=12)
@@ -641,7 +563,7 @@ def perform_adiabatic_calculations(chosen_csv, auto_scale=True, y_margin=1e-17):
         results = peak_finder.fit(data_frame[config.extremum_of])
 
         # Assuming calculate_ad_mio is a comprehensive function handling all necessary plotting
-        X, Y = lib.calculate_ad_mio(
+        X, Y = calculate_ad_mio(
             data_frame,
             label=label,
             use_guiding_center=config.based_on_guiding_center,
@@ -819,7 +741,7 @@ def plot_amplitude_analysis_separate(path_, fname_, show_plot=False):
     labels1, labels2 = [], []
 
     for fname, color in zip(filelst, colors):
-        if is_multi_files:
+        if config.is_multi_files:
             file_path = os.path.join(fpath, fname)
         else:
             file_path = os.path.join(path_, fname)
@@ -833,7 +755,7 @@ def plot_amplitude_analysis_separate(path_, fname_, show_plot=False):
         eps_value = current_params.get("eps", "N/A")
 
         # Read and process data
-        df = lib.read_exported_csv_2Dsimulation(path_, fname)
+        df = read_exported_csv_2Dsimulation(path_, fname)
         varibale_to_find_peaks_with = df[config.extremum_of]
         peak_indices = peakfinder_(varibale_to_find_peaks_with, False)
 
@@ -944,14 +866,14 @@ def plot_amplitude_analysis_separate(path_, fname_, show_plot=False):
 
 
 if __name__ == "__main__":
-    if not is_multi_files:
+    if not config.is_multi_files:
         chosen_csv = search_for_export_csv()
         chosen_csv = os.path.basename(chosen_csv).replace(".csv", "")
     else:
         chosen_csv = "multi_plot"
 
     if config.calculate_integral:
-        plotter(fpath, chosen_csv)
+        plotter(config.target_folder, chosen_csv)
 
     if config.calculate_traditional_magneticMoment:
         perform_adiabatic_calculations(chosen_csv)

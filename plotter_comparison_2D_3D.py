@@ -1,112 +1,10 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
-from lib import extract_parameters_by_file_name, list_csv_files
+from modules import extract_parameters_by_file_name, list_csv_files
 import datetime
 import yaml
-
-
-# ---------------------------------- Config ---------------------------------- #
-class Configuration:
-    def __init__(self, config_path):
-        self.config = self.load_config(config_path)
-        self.save_file_name = self.config["save_file_name"]
-        self.save_file_extension = self.config["save_file_extension"]
-        self.is_multi_files = self.config["is_multi_files"]
-        self.target_folder = self.config["target_folder_multi_files"]
-        self.plots_folder = self.config["plots_folder"]
-        self.parameter_dict = self.config["simulation_parameters"]
-        self.extremum_of = self.config["extremum_of"]
-        self.based_on_guiding_center = self.config["based_on_guiding_center"]
-        self.calculate_integral = self.config["calculate_integral"]
-        self.share_x_axis = self.config["SHARE_X_AXIS"]
-        self.calculate_traditional_magneticMoment = self.config[
-            "calculate_traditional_magneticMoment"
-        ]
-        self.show_extremums_peaks = self.config["show_extremums_peaks"]
-        self.show_amplitude_analysis = self.config["show_amplitude_analysis"]
-
-    def load_config(self, config_path):
-        with open(config_path, "r") as config_file:
-            return yaml.safe_load(config_file)
-
-
-config = Configuration("config.yaml")
-
-# Use values from the config file
-save_file_name = config.save_file_name
-save_file_extension = config.save_file_extension
-is_multi_files = config.is_multi_files
-target_folder_multi_files = config.target_folder
-plots_folder = config.plots_folder
-parameter_dict = config.parameter_dict
-fpath = config.target_folder
-extremum_of = config.extremum_of
-show_extremums_peaks = config.show_extremums_peaks
-share_x_axis = config.share_x_axis
-
-# ------------------------------------ --- ----------------------------------- #
-
-
-# Define parameter mapping for latex symbols
-parameter_mapping = {
-    "eps": r"$\epsilon$",
-    "epsphi": r"$\epsilon_\phi$",
-    "kappa": r"$\kappa$",
-    "deltas": r"$\delta_s$",
-    "beta": r"$\beta_0$",
-    "alpha": r"$\alpha_0$",
-    "theta": r"$\theta_0$",
-    "time": r"$\tau$",
-}
-
-
-def save_plots_with_timestamp(fig, base_name, parameters=None):
-    """
-    Save plots with timestamp and parameters in organized directories.
-
-    Parameters:
-    -----------
-    fig : matplotlib.figure.Figure
-        The figure to save
-    base_name : str
-        Base name for the file
-    parameters : dict, optional
-        Dictionary of parameters to include in filename
-    """
-    # Generate timestamp filename
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_file_name = f"{base_name}_{timestamp}"
-
-    # Create plots directory if it doesn't exist
-    os.makedirs(plots_folder, exist_ok=True)
-
-    # Save with multiple extensions
-    for ext in [save_file_extension, ".png"]:
-        # Create subdirectory for file type if it doesn't exist
-        subdir = os.path.join(plots_folder, ext.lstrip("."))
-        os.makedirs(subdir, exist_ok=True)
-
-        # Generate filename with parameters if available
-        if parameters:
-            param_str = "_".join([f"{k}{v}" for k, v in parameters.items()])
-            filename = f"{save_file_name}_{param_str}{ext}"
-        else:
-            filename = f"{save_file_name}{ext}"
-
-        path_to_save = os.path.join(subdir, filename)
-
-        # Save figure with only supported metadata
-        fig.savefig(
-            path_to_save,
-            dpi=600,
-            bbox_inches="tight",
-            pad_inches=0.1,
-            metadata={
-                "Creator": "Shahab Bahreini Jangjoo",
-                "Date": datetime.datetime.now().isoformat(),
-            },
-        )
+from modules import save_plots_with_timestamp, list_csv_files_noFolder
 
 
 # Function to plot the data from two selected CSV files
@@ -168,15 +66,11 @@ def plot_comparison(file1, file2):
 
 # Main function
 if __name__ == "__main__":
-    csv_files = list_csv_files()
+    csv_files = list_csv_files_noFolder()
 
     if len(csv_files) < 2:
         print("At least two CSV files are required for comparison.")
     else:
-        print("Available CSV files:")
-        for idx, file in enumerate(csv_files):
-            print(f"{idx + 1}. {file}")
-
         try:
             # Ask the user to select two files
             choice1 = int(input("Select the number for the 2D dataset: ")) - 1

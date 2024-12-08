@@ -31,11 +31,11 @@ import matplotlib.pyplot as plt
 import argparse
 import re
 import datetime
-from lib import (
+from modules import (
     search_for_export_csv,
     extract_parameters_by_file_name,
     read_exported_csv_simulation,
-    read_exported_csv_simulatio_3D
+    read_exported_csv_simulatio_3D,
 )
 
 # ---------------------------- CONFIG ---------------------------- #
@@ -82,61 +82,111 @@ CONFIG = {
 
 # ---------------------------- FUNCTIONS ---------------------------- #
 
+
 def kinetic_energy_calculator_cylindricalCoordinates(df_):
     vel_R, vel_phi, vel_Z = df_["dR"], df_["R"] * df_["dphi"], df_["dZ"]
     return vel_R**2 + vel_phi**2 + vel_Z**2
 
-def kinetic_energy_cylindricalCoordinates_electricField(df_, kappa, delta_star, eps_phi):
-    R, Z, vel_R, vel_phi, vel_Z = df_["R"], df_["Z"], df_["dR"], df_["R"] * df_["dphi"], df_["dZ"]
+
+def kinetic_energy_cylindricalCoordinates_electricField(
+    df_, kappa, delta_star, eps_phi
+):
+    R, Z, vel_R, vel_phi, vel_Z = (
+        df_["R"],
+        df_["Z"],
+        df_["dR"],
+        df_["R"] * df_["dphi"],
+        df_["dZ"],
+    )
     kinetic_energy = vel_R**2 + vel_phi**2 + vel_Z**2
-    potential_energy = kappa * (1 - delta_star**2 * (1 - Z**2 / (R**2 + Z**2))) * np.log(1 / (R**2 + Z**2)) + 0.5 * (1 - Z**2 / (R**2 + Z**2))
+    potential_energy = kappa * (
+        1 - delta_star**2 * (1 - Z**2 / (R**2 + Z**2))
+    ) * np.log(1 / (R**2 + Z**2)) + 0.5 * (1 - Z**2 / (R**2 + Z**2))
     return kinetic_energy + 2 * eps_phi * potential_energy
+
 
 def angular_momentum_calculator_cylindricalCoordinates(df_):
     R, Z, vel_phi = df_["R"], df_["Z"], df_["R"] * df_["dphi"]
     psi = Z / np.sqrt(R**2 + Z**2)
     return vel_phi * R - psi
 
+
 def format_scientific(value):
     if value:
-        match = re.match(r'(\d+(?:\.\d+)?)e([+-]?\d+)', value)
+        match = re.match(r"(\d+(?:\.\d+)?)e([+-]?\d+)", value)
         if match:
             base, exponent = match.groups()
             return f"{float(base):.1f}e{exponent}"
     return value
 
+
 def extract_info_from_filename(filename):
-    parts = filename.split('_')
+    parts = filename.split("_")
     method = parts[0]
-    reltol = next((part.split('-', 1)[1].split('.')[0] for part in parts if part.startswith('reltol')), None)
-    abstol = next((part.split('-', 1)[1].split('.')[0] for part in parts if part.startswith('abstol')), None)
+    reltol = next(
+        (
+            part.split("-", 1)[1].split(".")[0]
+            for part in parts
+            if part.startswith("reltol")
+        ),
+        None,
+    )
+    abstol = next(
+        (
+            part.split("-", 1)[1].split(".")[0]
+            for part in parts
+            if part.startswith("abstol")
+        ),
+        None,
+    )
     return method, reltol, abstol
+
 
 def plotter(chosen_csv, save_filename, parameter_dict, plot_type):
     # Plotter Configurations
     plt.rcParams["figure.dpi"] = CONFIG["PLOT_CONFIG"]["figure_dpi"]
-    
+
     # Fetch CSV files
-    path_ = os.path.dirname(__file__) + CONFIG["CSV_FOLDER"] if CONFIG["IS_MULTI_FILES"] else ""
-    file_list = [f for f in os.listdir(path_) if f.lower().endswith('.csv')] if CONFIG["IS_MULTI_FILES"] else [chosen_csv]
+    path_ = (
+        os.path.dirname(__file__) + CONFIG["CSV_FOLDER"]
+        if CONFIG["IS_MULTI_FILES"]
+        else ""
+    )
+    file_list = (
+        [f for f in os.listdir(path_) if f.lower().endswith(".csv")]
+        if CONFIG["IS_MULTI_FILES"]
+        else [chosen_csv]
+    )
     parameter_dict.update(extract_parameters_by_file_name(file_list[0]))
     print(f"Path: {path_}")
     print(f"File list: {file_list}")
 
     # Determine if Electric Field is included
-    electric_field_included = float(parameter_dict['epsphi']) != 0
+    electric_field_included = float(parameter_dict["epsphi"]) != 0
 
     plot_config = CONFIG["PLOT_TYPES"][plot_type]
-    
-    plt.suptitle(plot_config["suptitle"], fontsize=CONFIG["PLOT_CONFIG"]["suptitle_fontsize"], y=CONFIG["PLOT_CONFIG"]["suptitle_y"])
+
+    plt.suptitle(
+        plot_config["suptitle"],
+        fontsize=CONFIG["PLOT_CONFIG"]["suptitle_fontsize"],
+        y=CONFIG["PLOT_CONFIG"]["suptitle_y"],
+    )
 
     for fname in file_list:
         df = read_exported_csv_simulatio_3D(path_, fname)
         t_ = df["timestamp"].tolist()
 
         if plot_type == "energy":
-            Y = (kinetic_energy_cylindricalCoordinates_electricField(df, parameter_dict["kappa"], parameter_dict["deltas"], parameter_dict["epsphi"])
-                 if electric_field_included else kinetic_energy_calculator_cylindricalCoordinates(df))
+            Y = (
+                kinetic_energy_cylindricalCoordinates_electricField(
+                    df,
+                    parameter_dict["kappa"],
+                    parameter_dict["deltas"],
+                    parameter_dict["epsphi"],
+                )
+                if electric_field_included
+                else kinetic_energy_calculator_cylindricalCoordinates(df)
+            )
         elif plot_type == "momentum":
             Y = angular_momentum_calculator_cylindricalCoordinates(df)
 
@@ -145,23 +195,23 @@ def plotter(chosen_csv, save_filename, parameter_dict, plot_type):
             graph_label = f"{method}"
             if reltol:
                 reltol = reltol.replace("e", "^")
-                graph_label += fr", reltol=$10^{{-{reltol.split('-')[1]}}}$"
+                graph_label += rf", reltol=$10^{{-{reltol.split('-')[1]}}}$"
             if abstol:
                 abstol = abstol.replace("e", "^")
-                graph_label += fr", abstol=$10^{{-{abstol.split('-')[1]}}}$"
+                graph_label += rf", abstol=$10^{{-{abstol.split('-')[1]}}}$"
         else:
-            graph_label = fr"$\epsilon = {parameter_dict['eps']}$"
-        
+            graph_label = rf"$\epsilon = {parameter_dict['eps']}$"
+
         plt.plot(t_, Y, label=graph_label)
 
     plt.ylabel(plot_config["y_label"])
     plt.xlabel(CONFIG["X_LABEL"])
-    
+
     # Improve y-axis scaling
     plt.ylim(auto=True)
 
     plt.title(
-        fr"$\theta_0 = {parameter_dict['theta']}^{{\circ}}$ , $\alpha_0={parameter_dict['alpha']}^{{\circ}}$ , $\beta_0 = {parameter_dict['beta']}^{{\circ}}$, $\phi_0 = 0.0^{{\circ}}$, $\kappa = {parameter_dict['kappa']}$, $\delta_* = {parameter_dict['deltas']}$, $\epsilon_\phi = {parameter_dict['epsphi']}$",
+        rf"$\theta_0 = {parameter_dict['theta']}^{{\circ}}$ , $\alpha_0={parameter_dict['alpha']}^{{\circ}}$ , $\beta_0 = {parameter_dict['beta']}^{{\circ}}$, $\phi_0 = 0.0^{{\circ}}$, $\kappa = {parameter_dict['kappa']}$, $\delta_* = {parameter_dict['deltas']}$, $\epsilon_\phi = {parameter_dict['epsphi']}$",
         loc="right",
         fontsize=CONFIG["PLOT_CONFIG"]["title_fontsize"],
         color=CONFIG["PLOT_CONFIG"]["title_color"],
@@ -177,10 +227,16 @@ def plotter(chosen_csv, save_filename, parameter_dict, plot_type):
 
     # Add the electric field text below the title if included
     if electric_field_included:
-        plt.text(0.5, CONFIG["PLOT_CONFIG"]["electric_field_text_y"], "(Electric Field Included)", 
-                 fontsize=CONFIG["PLOT_CONFIG"]["electric_field_text_fontsize"], 
-                 ha='center', va='center', transform=plt.gcf().transFigure, 
-                 color=CONFIG["PLOT_CONFIG"]["title_color"])
+        plt.text(
+            0.5,
+            CONFIG["PLOT_CONFIG"]["electric_field_text_y"],
+            "(Electric Field Included)",
+            fontsize=CONFIG["PLOT_CONFIG"]["electric_field_text_fontsize"],
+            ha="center",
+            va="center",
+            transform=plt.gcf().transFigure,
+            color=CONFIG["PLOT_CONFIG"]["title_color"],
+        )
 
     plt.legend()
     plt.tight_layout()
@@ -191,30 +247,48 @@ def plotter(chosen_csv, save_filename, parameter_dict, plot_type):
     meaningful_name = f"{plot_type}_{parameter_dict['eps']}_{parameter_dict['kappa']}_{parameter_dict['deltas']}"
     if electric_field_included:
         meaningful_name += f"_EF_{parameter_dict['epsphi']}"
-    
+
     full_filename = f"{timestamp}_{meaningful_name}_{save_filename}"
 
     # Ensure the 'plots' directory exists
     os.makedirs("plots", exist_ok=True)
 
     # Save the figure
-    plt.savefig(f"plots/{full_filename}.{CONFIG['EXPORT_IMAGE_EXTENSION']}", dpi=CONFIG["DPI"])
+    plt.savefig(
+        f"plots/{full_filename}.{CONFIG['EXPORT_IMAGE_EXTENSION']}", dpi=CONFIG["DPI"]
+    )
     print(f"Plot saved as: plots/{full_filename}.{CONFIG['EXPORT_IMAGE_EXTENSION']}")
-    
+
     plt.show()
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Plot energy or momentum from simulation data.")
-    parser.add_argument("plot_type", choices=["energy", "momentum"], help="Type of plot to generate: 'energy' or 'momentum'.")
-    parser.add_argument("--use-method-legend", action="store_true", help="Use method names instead of epsilon values for legend.")
+    parser = argparse.ArgumentParser(
+        description="Plot energy or momentum from simulation data."
+    )
+    parser.add_argument(
+        "plot_type",
+        choices=["energy", "momentum"],
+        help="Type of plot to generate: 'energy' or 'momentum'.",
+    )
+    parser.add_argument(
+        "--use-method-legend",
+        action="store_true",
+        help="Use method names instead of epsilon values for legend.",
+    )
     args = parser.parse_args()
 
     CONFIG["USE_METHOD_LEGEND"] = args.use_method_legend
 
     chosen_csv = "multi_plot" if CONFIG["IS_MULTI_FILES"] else search_for_export_csv()
-    
+
     # Update parameters based on the CSV file
     parameters = CONFIG["DEFAULT_PARAMETERS"].copy()
     parameters.update(extract_parameters_by_file_name(chosen_csv))
-    
-    plotter(chosen_csv, CONFIG["PLOT_TYPES"][args.plot_type]["export_file_name"], parameters, args.plot_type)
+
+    plotter(
+        chosen_csv,
+        CONFIG["PLOT_TYPES"][args.plot_type]["export_file_name"],
+        parameters,
+        args.plot_type,
+    )

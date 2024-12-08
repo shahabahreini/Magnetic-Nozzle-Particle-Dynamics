@@ -6,7 +6,7 @@ import os
 import glob
 import datetime
 import yaml
-from lib import (
+from modules import (
     extract_parameters_by_file_name,
     save_plots_with_timestamp,
     list_csv_files_noFolder,
