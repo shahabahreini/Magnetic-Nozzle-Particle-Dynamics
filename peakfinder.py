@@ -274,7 +274,7 @@ def plotter(path_, fname_, show_growth_rate=False):
     # Data collection
     for fname in filelst:
         if config.is_multi_files:
-            file_path = os.path.join(fpath, fname)
+            file_path = os.path.join(path_, fname)
         else:
             file_path = os.path.join(path_, fname)
 
@@ -532,7 +532,7 @@ def plotter(path_, fname_, show_growth_rate=False):
     # Save plots with timestamp
     save_plots_with_timestamp(fig, "Adiabatic_Condition_and_Growth_Rate", parameters)
 
-    plt.show()
+    # plt.show()
 
 
 def perform_adiabatic_calculations(chosen_csv, auto_scale=True, y_margin=1e-17):
@@ -866,6 +866,405 @@ def plot_amplitude_analysis_separate(path_, fname_, show_plot=False):
         plt.show()
 
 
+def plot_eta_fluctuations(df, fname, show_growth_rate=False):
+    """
+    Create a dedicated plot for η fluctuations with advanced classification and metrics.
+    Text information boxes are arranged sequentially on the right side.
+
+    Parameters:
+        df (DataFrame): DataFrame containing the simulation data
+        fname (str): Filename for parameter extraction
+        show_growth_rate (bool): Whether to show the rate of change of η
+    """
+    plt.style.use("default")
+
+    # Create figure with wider aspect ratio
+    fig = plt.figure(figsize=(16, 10))
+
+    # Create GridSpec with larger right panel for text boxes
+    gs = fig.add_gridspec(1, 2, width_ratios=[2, 1], wspace=0.2)
+
+    # Create nested GridSpec for left panel (main plot and fluctuation plot)
+    gs_left = gs[0].subgridspec(2, 1, height_ratios=[3, 1], hspace=0.3)
+
+    # Create nested GridSpec for right panel (text boxes)
+    gs_right = gs[1].subgridspec(3, 1, height_ratios=[1, 1, 1], hspace=0.3)
+
+    # Create axes
+    ax1 = fig.add_subplot(gs_left[0])  # Main plot
+    ax2 = fig.add_subplot(gs_left[1])  # Fluctuation plot
+
+    # Text box axes (3 separate boxes)
+    ax_text1 = fig.add_subplot(gs_right[0])  # Classification
+    ax_text2 = fig.add_subplot(gs_right[1])  # Statistical measures
+    ax_text3 = fig.add_subplot(gs_right[2])  # Additional info
+
+    # Hide axes for text boxes
+    for ax in [ax_text1, ax_text2, ax_text3]:
+        ax.axis("off")
+
+    # Calculate η and time
+    eta, _ = calculate_adiabatic_condition(df, fname)
+    t = df["timestamp"].values
+
+    # Get maximum eta for dynamic scaling
+    max_eta = np.max(eta)
+    upper_limit = 10 ** (np.ceil(np.log10(max_eta)))
+
+    # Calculate classification metrics
+    window = min(len(eta) // 10, 50)
+    rolling_mean = pd.Series(eta).rolling(window=window).mean()
+    rolling_std = pd.Series(eta).rolling(window=window).std()
+    rel_fluct = np.abs(eta - rolling_mean) / rolling_mean
+
+    # Classification metrics
+    mean_eta = np.mean(eta)
+    max_rel_fluct = np.nanmax(rel_fluct)
+    mean_rel_fluct = np.nanmean(rel_fluct)
+    d_eta = np.gradient(eta, t)
+    mean_abs_change = np.mean(np.abs(d_eta))
+
+    # Dynamic thresholds
+    strong_threshold = 1e-3
+    good_threshold = 1e-2
+    moderate_threshold = 1e-1
+    weak_threshold = upper_limit
+
+    # Determine classification
+    if mean_eta < strong_threshold and max_rel_fluct < 0.1:
+        state = "Strong Adiabatic Preservation"
+        color = "darkgreen"
+        confidence = "High"
+    elif mean_eta < good_threshold and max_rel_fluct < 0.3:
+        state = "Good Adiabatic Preservation"
+        color = "green"
+        confidence = "Good"
+    elif mean_eta < moderate_threshold and max_rel_fluct < 0.5:
+        state = "Moderate Adiabatic Preservation"
+        color = "yellow"
+        confidence = "Moderate"
+    elif mean_eta < weak_threshold and max_rel_fluct < 1.0:
+        state = "Weak Adiabatic Preservation"
+        color = "orange"
+        confidence = "Low"
+    else:
+        state = "Adiabatic Breakdown"
+        color = "red"
+        confidence = "Very Low"
+
+    # Plot regions
+    regions = [
+        (0, strong_threshold, "Strong Adiabatic", "#8EB486"),
+        (strong_threshold, good_threshold, "Good Adiabatic", "#A8CD89"),
+        (good_threshold, moderate_threshold, "Moderate Adiabatic", "#F4E0AF"),
+        (moderate_threshold, weak_threshold, "Weak/Breakdown", "#F9C0AB"),
+    ]
+
+    # Plot regions in main plot
+    for ymin, ymax, label, reg_color in regions:
+        ax1.axhspan(ymin, ymax, color=reg_color, alpha=0.6, label=label)
+
+    # Plot η evolution
+    ax1.semilogy(t, eta, "b-", linewidth=2, label="η(τ)")
+    ax1.fill_between(
+        t,
+        rolling_mean - rolling_std,
+        rolling_mean + rolling_std,
+        color="gray",
+        alpha=0.2,
+        label="Fluctuation Range",
+    )
+
+    # Extract parameters for display
+    params = extract_parameters_by_file_name(fname)
+
+    # Prepare text content for boxes
+    classification_text = (
+        f"━━━ Classification Metrics ━━━\n\n"
+        f"Status:\n{state}\n\n"
+        f"Confidence Level:\n{confidence}"
+    )
+
+    statistical_text = (
+        f"━━━ Statistical Measures ━━━\n\n"
+        f"Mean η: {mean_eta:.2e}\n"
+        f"Max η: {max_eta:.2e}\n\n"
+        f"Mean Rel. Fluct.: {mean_rel_fluct:.2f}\n"
+        f"Max Rel. Fluct.: {max_rel_fluct:.2f}"
+    )
+
+    additional_text = (
+        f"━━━ Additional Metrics ━━━\n\n"
+        f"Mean |dη/dτ|: {mean_abs_change:.2e}\n"
+        f"Parameters:\n"
+        f"ε={params.get('eps', 'N/A')}\n"
+        f"κ={params.get('kappa', 'N/A')}"
+    )
+
+    # Add text boxes with consistent styling
+    text_boxes = [
+        (ax_text1, classification_text),
+        (ax_text2, statistical_text),
+        (ax_text3, additional_text),
+    ]
+
+    for ax, text in text_boxes:
+        ax.text(
+            0.05,
+            0.95,
+            text,
+            transform=ax.transAxes,
+            verticalalignment="top",
+            bbox=dict(
+                boxstyle="round,pad=0.8",
+                facecolor="white",
+                alpha=0.9,
+                edgecolor="black",
+                linewidth=1,
+            ),
+            fontsize=9,
+            family="monospace",
+        )
+
+    # Plot relative fluctuations
+    ax2.plot(t, rel_fluct, "r-", label="Relative Fluctuation")
+    ax2.set_ylabel("Relative\nFluctuation", fontsize=10)
+    ax2.set_xlabel("τ (Time)", fontsize=10)
+    ax2.grid(True, alpha=0.3)
+    ax2.set_ylim(bottom=0)
+
+    # Add growth rate if requested
+    if show_growth_rate:
+        ax3 = ax1.twinx()
+        ax3.plot(t, d_eta, "r--", alpha=0.6, label="dη/dτ")
+        ax3.set_ylabel("Growth Rate (dη/dτ)", color="r", fontsize=10)
+        ax3.tick_params(axis="y", colors="r")
+        ax3.legend(loc="upper right", fontsize=9)
+        max_growth = np.max(np.abs(d_eta))
+        ax3.set_ylim(-max_growth * 1.2, max_growth * 1.2)
+
+    # Adjust main plot
+    ax1.set_xlabel("τ (Time)", fontsize=10)
+    ax1.set_ylabel("η (Adiabatic Parameter)", fontsize=10)
+    ax1.grid(True, which="both", linestyle="--", alpha=0.3)
+    ax1.set_ylim(1e-6, upper_limit)
+
+    # Move main legend to top of plot
+    ax1.legend(
+        loc="lower center",
+        ncol=4,
+        fontsize=9,
+        borderaxespad=0,
+    )
+
+    # Adjust fluctuation plot
+    ax2.legend(loc="upper right", fontsize=9)
+    ax2.grid(True, alpha=0.3)
+
+    # Title
+    title = "Adiabatic Parameter Evolution and Classification"
+    fig.suptitle(title, y=0.98, fontsize=12)
+
+    # Ensure tight layout while respecting the new spacing
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+    return fig, (ax1, ax2)
+
+
+def plotter_adiabatic_invariance_check(path_, fname_, show_frequency_analysis=False):
+    """
+    Plotter function for checking the constancy of the adiabatic invariant J and
+    optionally performing a simple frequency analysis by extracting the frequency from
+    the time intervals between peaks in the radial oscillation.
+
+    Parameters:
+        path_ (str): Base path for data files
+        fname_ (str): Base filename (without extension)
+        show_frequency_analysis (bool): Whether to show a frequency analysis plot.
+    """
+    plt.style.use("default")
+    plt.rcParams.update(
+        {
+            "font.family": "serif",
+            "font.size": 10,
+            "axes.labelsize": 12,
+            "axes.titlesize": 14,
+            "xtick.labelsize": 10,
+            "ytick.labelsize": 10,
+            "legend.fontsize": 10,
+            "figure.titlesize": 16,
+            "axes.grid": True,
+            "grid.alpha": 0.3,
+            "grid.linestyle": "--",
+            "grid.color": "#CCCCCC",
+            "axes.linewidth": 0.5,
+            "axes.edgecolor": "#333333",
+            "figure.dpi": 150,
+            "savefig.dpi": 600,
+            "legend.framealpha": 0.9,
+            "legend.edgecolor": "#CCCCCC",
+            "legend.fancybox": True,
+            "axes.spines.top": True,
+            "axes.spines.right": True,
+            "axes.spines.left": True,
+            "axes.spines.bottom": True,
+            "figure.autolayout": True,
+            "axes.axisbelow": True,
+        }
+    )
+
+    # Handle file reading
+    if config.is_multi_files:
+        base_path = os.path.join(os.path.dirname(__file__), config.target_folder)
+        filelst = [f for f in os.listdir(base_path) if f.endswith(".csv")]
+    else:
+        base_path = ""
+        filelst = [fname_ + ".csv"]
+
+    if show_frequency_analysis:
+        fig = plt.figure(figsize=(12, 10), dpi=150)
+        gs = plt.GridSpec(2, 1, hspace=0.25)
+        ax1 = fig.add_subplot(gs[0])  # J invariance plot
+        ax2 = fig.add_subplot(gs[1])  # Frequency plot
+    else:
+        fig, ax1 = plt.subplots(figsize=(10, 6), dpi=150)
+
+    colors = plt.cm.viridis(np.linspace(0, 1, len(filelst)))
+    file_params = None
+
+    for csv_file, color in zip(filelst, colors):
+        file_path = os.path.join(base_path, csv_file)
+        if not os.path.exists(file_path):
+            print(f"File not found: {file_path}")
+            continue
+
+        df = read_exported_csv_2Dsimulation(base_path, file_path)
+
+        # Identify cycles via peaks
+        var_for_peaks = df[config.extremum_of]
+        peak_idx = peakfinder_(var_for_peaks, config.show_extremums_peaks)
+        if len(peak_idx) < 3:
+            print(f"Not enough cycles found in {csv_file} for J calculation.")
+            continue
+
+        # Compute J at each cycle using adiabtic_calculator
+        J_vals = adiabtic_calculator(df["drho"], df["rho"], peak_idx)
+
+        t = df["timestamp"].values
+        cycle_times = []
+        for i in range(1, len(peak_idx)):
+            start_i = peak_idx[i - 1]
+            end_i = peak_idx[i]
+            cycle_time = 0.5 * (t[start_i] + t[end_i])
+            cycle_times.append(cycle_time)
+
+        cycle_times = np.array(cycle_times)
+        J_vals = np.array(J_vals)
+        J0 = J_vals[0]
+        J_normalized = J_vals / J0
+
+        eps_val = extract_parameters_by_file_name(csv_file).get("eps", "N/A")
+
+        # Plot J/J0
+        ax1.plot(
+            cycle_times,
+            J_normalized,
+            "o-",
+            color=color,
+            label=rf"$\epsilon={eps_val}$",
+            linewidth=1.5,
+            markersize=4,
+            markeredgecolor="white",
+            markeredgewidth=0.5,
+        )
+
+        # Store parameters for annotation
+        if file_params is None:
+            file_params = extract_parameters_by_file_name(csv_file)
+
+        # If frequency analysis is enabled, compute frequency from peak intervals:
+        if show_frequency_analysis:
+            freqs = []
+            freq_times = []
+            # Frequency = 1 / Period, Period is interval between consecutive peaks
+            for i in range(len(peak_idx) - 1):
+                period = t[peak_idx[i + 1]] - t[peak_idx[i]]
+                frequency = 1.0 / period
+                freq_time = 0.5 * (t[peak_idx[i + 1]] + t[peak_idx[i]])
+                freqs.append(frequency)
+                freq_times.append(freq_time)
+
+            if len(freqs) > 0:
+                ax2.plot(
+                    freq_times,
+                    freqs,
+                    "x-",
+                    color=color,
+                    linewidth=1.5,
+                    markersize=4,
+                    markeredgecolor="white",
+                    markeredgewidth=0.5,
+                    label=rf"Freq. $\epsilon={eps_val}$",
+                )
+
+    # Annotate parameters
+    if file_params:
+        parameter_mapping = {
+            "eps": r"$\epsilon$",
+            "epsphi": r"$\epsilon_\phi$",
+            "kappa": r"$\kappa$",
+            "deltas": r"$\delta_s$",
+            "beta": r"$\beta_0$",
+            "alpha": r"$\alpha_0$",
+            "theta": r"$\theta_0$",
+            "time": r"$\tau$",
+        }
+        param_text = "\n".join(
+            f"{parameter_mapping.get(key, key)}: {val}"
+            for key, val in file_params.items()
+        )
+        ax1.text(
+            0.02,
+            0.95,
+            "Simulation Parameters:\n" + param_text,
+            transform=ax1.transAxes,
+            fontsize=10,
+            verticalalignment="top",
+            bbox=dict(
+                boxstyle="round,pad=0.5",
+                fc="white",
+                ec="#CCCCCC",
+                alpha=0.9,
+                linewidth=0.5,
+            ),
+        )
+
+    # Style the J invariance plot
+    ax1.set_xlabel(r"$\tau$", fontsize=12)
+    ax1.set_ylabel("Normalized $J (J/J_0)$", fontsize=12)
+    ax1.set_title("Adiabatic Invariance Check: $J(t)$", pad=15)
+    ax1.legend(loc="best", framealpha=0.9, edgecolor="#CCCCCC", fancybox=True)
+    ax1.grid(True, linestyle="--", alpha=0.7)
+
+    if show_frequency_analysis:
+        ax2.set_xlabel(r"$\tau$", fontsize=12)
+        ax2.set_ylabel("Frequency [1/τ]", fontsize=12)
+        ax2.set_title("Frequency Analysis of Radial Oscillations", pad=15)
+        ax2.legend(loc="best", framealpha=0.9, edgecolor="#CCCCCC", fancybox=True)
+        ax2.grid(True, linestyle="--", alpha=0.7)
+
+    plt.tight_layout()
+
+    # Save the plot with parameters
+    if filelst:
+        parameters = extract_parameters_by_file_name(os.path.basename(filelst[0]))
+    else:
+        parameters = {}
+
+    save_plots_with_timestamp(fig, "Adiabatic_Invariance_Check", parameters)
+    # plt.show()
+
+
 if __name__ == "__main__":
     if not config.is_multi_files:
         chosen_csv = search_for_export_csv()
@@ -881,3 +1280,22 @@ if __name__ == "__main__":
 
     if config.show_amplitude_analysis:
         plot_amplitude_analysis_separate(config.target_folder, chosen_csv)
+
+    if True:
+        path_ = ""
+        fname = chosen_csv + ".csv"
+        df = read_exported_csv_2Dsimulation(path_, fname)
+
+        # Create the new fluctuation plot
+        fig, ax = plot_eta_fluctuations(df, fname, show_growth_rate=True)
+
+        # Save the plot
+        save_plots_with_timestamp(
+            fig, "Eta_Fluctuations", extract_parameters_by_file_name(fname)
+        )
+        plt.show()
+
+    if True:
+        path_ = ""
+        fname = chosen_csv
+        plotter_adiabatic_invariance_check(path_, fname, show_frequency_analysis=True)
