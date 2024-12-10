@@ -148,7 +148,6 @@ def adiabatic_condition(z, dz_dt, eps_phi, kappa, delta_star, l_0):
     """
     # Calculate ω
     omega = omega_tau(z, eps_phi, kappa, delta_star, l_0)
-
     # Calculate dω/dτ
     domega = domega_dtau(z, dz_dt, eps_phi, kappa, delta_star, l_0)
 
@@ -177,6 +176,7 @@ def calculate_adiabatic_condition(df, fname):
 
     # Calculate adiabatic condition
     eta = adiabatic_condition(z, dz_dt, eps_phi, kappa, delta_star, l0)
+    print("The firdt calculated η: ", eta[0])
 
     return eta, dz_dt
 
@@ -293,6 +293,7 @@ def plotter(path_, fname_, show_growth_rate=False):
 
         # Calculate necessary values
         y_axis_data = adiabtic_calculator(df["drho"], df["rho"], peak_idxx)
+        print("The first calculated J: ", y_axis_data[0])
         x_axis_data = [df["timestamp"].tolist()[i] for i in peak_idxx[1:]]
 
         parameter_dict = extract_parameters_by_file_name(fname)

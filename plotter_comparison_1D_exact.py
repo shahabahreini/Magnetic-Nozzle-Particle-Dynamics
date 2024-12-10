@@ -173,7 +173,7 @@ if result is not None:
         result["time"], result["z_2d"], "o", color="#E74C3C", markersize=8, alpha=0.8
     )
 
-    title = f"Trajectory Comparison (Error > {result['threshold']}% Difference)"
+    title = f"Trajectory Comparison - Reduced 1D Equation vs Exact Solution"
 else:
     title = "Trajectory Comparison (No significant differences found)"
 

@@ -26,7 +26,7 @@ function CylindricalProblem!(ddu, du, u, p, t)
     alpha, eps_phi, A, B, l0, delta_star, kappa, J, rho_0, z_0 = p
     omega_0 = 2 * sqrt(3 / 4 * l0 + 1)
     omega = sqrt(omega_0^2 / u[1]^4 + eps_phi * (kappa * delta_star^2 / u[1]^4 - kappa * log(1 / u[1]^2) + 1 / u[1]^4))
-    ddu[1] = (2 * J / π) * (omega_0^2 + eps_phi * (kappa * delta_star^2 + 1 - π / (2 * J) * kappa * u[1]^2)) / (u[1]^5 * omega) + 2 * kappa * eps_phi / u[1]
+    ddu[1] = (J / π) * (2 * omega_0^2 + eps_phi * (kappa * delta_star^2 + 1 - kappa * u[1]^2)) / (u[1]^5 * omega) + 2 * kappa * eps_phi / u[1]
 
 
     return nothing
