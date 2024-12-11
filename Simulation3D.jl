@@ -76,14 +76,14 @@ function CylindricalProblem!(ddu, du, u, p, t)
     log_term = log(rho^2 + z^2)
 
     # Corrected dPhi_dz
-    dPhi_dz = -z * (rho^2 * (-2 * delta_star^2 * kappa + 2 * kappa + 1) + 
-                    2 * delta_star^2 * kappa * rho^2 * log_term + 
+    dPhi_dz = -z * (rho^2 * (-2 * delta_star^2 * kappa + 2 * kappa + 1) +
+                    2 * delta_star^2 * kappa * rho^2 * log_term +
                     2 * kappa * z^2) / (rho^2 + z^2)^2
 
     # Corrected dPhi_dR
-    dPhi_dR = rho * (2 * (delta_star^2 - 1) * kappa * rho^2 + 
-                    2 * delta_star^2 * kappa * z^2 * log_term + 
-                    (1 - 2 * kappa) * z^2) / (rho^2 + z^2)^2
+    dPhi_dR = rho * (2 * (delta_star^2 - 1) * kappa * rho^2 +
+                     2 * delta_star^2 * kappa * z^2 * log_term +
+                     (1 - 2 * kappa) * z^2) / (rho^2 + z^2)^2
 
 
 

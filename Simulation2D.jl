@@ -11,24 +11,6 @@ using CSV
 
 export CylindricalProblem!, SolvingtheProblem, ParticleMotion
 
-"""
-    calculateOmega(z_, rho_, type_)
-
-	Calculate the omega values for the given z and rho values based on the type.
-	- If type is "rho", omega is calculated based on rho and z values.
-	- Otherwise, omega is calculated based only on z values.
-"""
-function calculateOmega(z_, rho_, type_)
-    omega = similar(z_)
-
-    if type_ == "rho"
-        omega .= @. -1 / 2 * rho_^2 / z_^6
-    else
-        omega .= @. 1 / (4 * z_^4)
-    end
-
-    return omega
-end
 
 """
     exportData(diffrentialSol, endTime)
@@ -42,14 +24,6 @@ end
 function exportData(diffrentialSol, endTime)
     df = DataFrame(diffrentialSol)
     rename!(df, :"value1" => "drho", :"value2" => "dz", :"value3" => "rho", :"value4" => "z")
-
-    rho = diffrentialSol[3, :]
-    z = diffrentialSol[4, :]
-    omega_rho = calculateOmega(z, rho, "rho")
-    omega_z = calculateOmega(z, rho, "z")
-
-    df[!, :"omega_rho"] = omega_rho
-    df[!, :"omega_z"] = omega_z
 
     round_endTime = round(endTime[2], digits=1)
     filename = "2D_export-eps$epsilon-epsphi$eps_phi-kappa$kappa-deltas$delta_star-beta$(round(rad2deg(beta_0)))-alpha$(round(rad2deg(alpha_0)))-theta$(round(rad2deg(theta_0)))-time$round_endTime.csv"
@@ -94,11 +68,6 @@ function CylindricalProblem!(ddu, du, u, p, t)
     # Update the differential equations
     ddu[1] = 1 / rho^3 * fac3 * (l0 + z * (2 * rho^2 + z^2) / fac1) - eps_phi * dPhi_dR
     ddu[2] = -1 / fac1 * fac3 - eps_phi * dPhi_dz
-
-    # --------------------------- Approximate Equation --------------------------- #
-    #= eps_p = epsilon * sin(alpha_0) * sin(beta_0) / sin(theta_0)
-    ddu[1] = 1 / (4 * rho^3) * (rho_0^4 * (1 + 2 * eps_p)^2 - (rho / z)^4)
-    ddu[2] = -1 / (2 * z^3) * (rho_0^2 * (1 + eps_p) - (rho / z)^2) =#
 
     return nothing
 end

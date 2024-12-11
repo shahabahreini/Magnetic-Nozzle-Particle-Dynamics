@@ -6,6 +6,17 @@ import datetime
 import yaml
 from modules import save_plots_with_timestamp, list_csv_files_noFolder
 
+parameter_mapping = {
+    "eps": r"$\epsilon$",
+    "epsphi": r"$\epsilon_\phi$",
+    "kappa": r"$\kappa$",
+    "deltas": r"$\delta_s$",
+    "beta": r"$\beta_0$",
+    "alpha": r"$\alpha_0$",
+    "theta": r"$\theta_0$",
+    "time": r"$\tau$",
+}
+
 
 # Function to plot the data from two selected CSV files
 def plot_comparison(file1, file2):

@@ -1,4 +1,4 @@
-module Simulation2D
+module Simulation1D
 
 include("SharedFunctions.jl")
 using .SharedFunctions
