@@ -1,6 +1,7 @@
 using Revise
 using Printf
 using REPL
+using Pkg
 
 # Terminal control functions
 function clear_screen()
@@ -123,6 +124,7 @@ function render_menu_options()
         (key="1", label="1D Simulation", desc="Linear particle motion"),
         (key="2", label="2D Simulation", desc="Planar particle motion"),
         (key="3", label="3D Simulation", desc="Spatial particle motion"),
+        (key="p", label="Package Management", desc="Install/update required packages"),
         (key="h", label="Help", desc="Show documentation"),
         (key="q", label="Quit", desc="Exit the simulator")
     ]
@@ -169,6 +171,103 @@ function show_help()
     readline()
 end
 
+# Package management functions
+function check_and_install_packages()
+    clear_screen()
+    println(color("\n📦 Package Management", :cyan))
+    println(style("━"^50, :dim))
+
+    # Read dependencies from install_packages.jl
+    deps_file = joinpath(dirname(@__FILE__), "install_packages.jl")
+    if !isfile(deps_file)
+        println(color("\n⚠ install_packages.jl not found!", :red))
+        return
+    end
+
+    # Parse dependencies from file
+    deps_content = read(deps_file, String)
+    deps_match = match(r"dependencies\s*=\s*\[(.*?)\]"s, deps_content)
+    if deps_match === nothing
+        println(color("\n⚠ Could not parse dependencies from install_packages.jl!", :red))
+        return
+    end
+
+    # Extract package names
+    packages = map(m -> strip(replace(m.match, "\"" => "")),
+        eachmatch(r"\"(.*?)\"", deps_match.captures[1]))
+
+    # Check installed packages using the new installed() function
+    installed_pkgs = installed()
+    installed_status = Dict{String,Bool}()
+    missing_packages = String[]
+
+    println(color("\nChecking installed packages...", :blue))
+    for pkg in packages
+        pkg_name = split(pkg, " ")[1]  # Handle cases with version specifications
+        is_installed = haskey(installed_pkgs, pkg_name)
+        installed_status[pkg_name] = is_installed
+        if !is_installed
+            push!(missing_packages, pkg_name)
+        end
+    end
+
+    # Display status
+    println("\nPackage Status:")
+    println(style("━"^30, :dim))
+
+    for (pkg, is_installed) in installed_status
+        status = is_installed ?
+                 color("✓ Installed", :green) :
+                 color("○ Not installed", :yellow)
+        println("$(rpad(pkg, 20)) $status")
+    end
+
+    # Handle missing packages
+    if !isempty(missing_packages)
+        println("\n" * color("Missing packages found:", :yellow))
+        for pkg in missing_packages
+            println("  • $pkg")
+        end
+
+        print("\nWould you like to install missing packages? (y/N): ")
+        if lowercase(strip(readline())) == "y"
+            println(color("\nInstalling missing packages...", :blue))
+            for pkg in missing_packages
+                try
+                    print("Installing $pkg... ")
+                    Pkg.add(pkg)
+                    println(color("✓", :green))
+                catch e
+                    println(color("⚠ Failed!", :red))
+                    println(color("  Error: $(sprint(showerror, e))", :red))
+                end
+            end
+        end
+    else
+        println(color("\n✓ All packages are installed!", :green))
+    end
+
+    println("\nPress Enter to return to main menu...")
+    readline()
+end
+
+# Package utility functions
+function dependencies()
+    deps = Pkg.dependencies()
+    return deps isa Dict ? deps : Dict(deps)
+end
+
+function installed()
+    deps = dependencies()
+    installs = Dict{String,VersionNumber}()
+    for (uuid, dep) in deps
+        dep.is_direct_dep || continue
+        dep.version === nothing && continue
+        installs[dep.name] = dep.version
+    end
+    return installs
+end
+
 # Modified main menu function
 function main_menu()
     while true
@@ -184,6 +283,8 @@ function main_menu()
                 run_simulation(parse(Int, choice))
                 print("\nPress Enter to continue...")
                 readline()
+            elseif choice == "p"
+                check_and_install_packages()
             elseif choice == "h"
                 show_help()
             elseif choice == "q"
