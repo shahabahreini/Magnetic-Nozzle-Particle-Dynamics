@@ -1,5 +1,7 @@
 # Particle Dynamics in Electromagnetic Fields Simulation
 
+[![DOI](https://zenodo.org/badge/841295299.svg)](https://doi.org/10.5281/zenodo.14451939)
+
 This project involves simulating particle dynamics in electromagnetic fields using Julia for the core numerical computations and Python for visualization and data analysis. It tracks particle motion under specific initial conditions and visualizes the system's behavior over time using various plotting techniques.
 
 ## Table of Contents
@@ -96,10 +98,7 @@ time_end = 50000.0
 3. Choose the type of simulation (1D, 3D or 2D) when prompted.
 4. Modify initial conditions as necessary in the `initial_conditions.txt` file.
 
-
-https://github.com/user-attachments/assets/b58eab73-5906-48b0-a356-a0eec0d89a57
-
-
+<https://github.com/user-attachments/assets/b58eab73-5906-48b0-a356-a0eec0d89a57>
 
 ### Python Visualization and Post-Processing
 
