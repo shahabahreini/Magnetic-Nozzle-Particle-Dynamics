@@ -1,5 +1,3 @@
-
-https://github.com/user-attachments/assets/3e9ca6ca-d577-4cec-8676-278364e57066
 # Particle Dynamics in Electromagnetic Fields Simulation
 
 This project involves simulating particle dynamics in electromagnetic fields using Julia for the core numerical computations and Python for visualization and data analysis. It tracks particle motion under specific initial conditions and visualizes the system's behavior over time using various plotting techniques.
