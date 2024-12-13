@@ -211,7 +211,7 @@ def print_header():
 
 def print_footer():
     print(term.bold_green("=" * 50))
-    print(term.bold_white("Thank you for using the system. Goodbye!"))
+    print(term.bold_white("Thank you for using the Plotter UI. Goodbye!"))
     print(term.bold_green("=" * 50))
 
 
