@@ -142,7 +142,7 @@ def extract_info_from_filename(filename):
     return method, reltol, abstol
 
 
-def plotter(chosen_csv, save_filename, parameter_dict, plot_type):
+def plotter_conservation(chosen_csv, save_filename, parameter_dict, plot_type):
     # Plotter Configurations
     plt.rcParams["figure.dpi"] = CONFIG["PLOT_CONFIG"]["figure_dpi"]
 
@@ -262,7 +262,7 @@ def plotter(chosen_csv, save_filename, parameter_dict, plot_type):
     plt.show()
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(
         description="Plot energy or momentum from simulation data."
     )
@@ -286,9 +286,13 @@ if __name__ == "__main__":
     parameters = CONFIG["DEFAULT_PARAMETERS"].copy()
     parameters.update(extract_parameters_by_file_name(chosen_csv))
 
-    plotter(
+    plotter_conservation(
         chosen_csv,
         CONFIG["PLOT_TYPES"][args.plot_type]["export_file_name"],
         parameters,
         args.plot_type,
     )
+
+
+if __name__ == "__main__":
+    main()

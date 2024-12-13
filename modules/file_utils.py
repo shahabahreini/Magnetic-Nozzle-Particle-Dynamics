@@ -728,3 +728,217 @@ def find_common_and_varying_params(files):
         sorted_files = files
 
     return common_params, varying_params, sorted_files
+
+
+def list_comparison_files(folder_path, comparison_type, file_role):
+    """
+    Generic CSV file listing function for solution comparisons.
+
+    Args:
+        folder_path (str): Folder path to list CSV files from
+        comparison_type (str): Type of comparison ("1D_2D" or "2D_3D")
+        file_role (str): Role of the file being selected ("reference", "approximation", "2D", "3D")
+
+    Returns:
+        tuple: (selected_file, all_files) or (None, None) if cancelled
+    """
+    console = Console()
+
+    # Define selection contexts for different comparison types
+    selection_info = {
+        # For 1D to 2D/3D comparisons
+        "1D_2D": {
+            "reference": {
+                "title": "Select Reference (2D/3D) Solution File",
+                "description": (
+                    "[yellow]Please select the reference solution file (2D/3D).[/yellow]\n"
+                    "[dim]This should be the high-fidelity solution to compare against.[/dim]"
+                ),
+                "color": "blue",
+                "expected_type": "2D/3D",
+            },
+            "approximation": {
+                "title": "Select 1D Approximation File",
+                "description": (
+                    "[yellow]Please select the 1D approximation solution file.[/yellow]\n"
+                    "[dim]This will be compared against the reference solution.[/dim]"
+                ),
+                "color": "green",
+                "expected_type": "1D",
+            },
+        },
+        # For 2D to 3D comparisons
+        "2D_3D": {
+            "2D": {
+                "title": "Select 2D Solution File",
+                "description": (
+                    "[yellow]Please select the 2D solution file for comparison.[/yellow]\n"
+                    "[dim]This will be compared against the 3D solution.[/dim]"
+                ),
+                "color": "blue",
+                "expected_type": "2D",
+            },
+            "3D": {
+                "title": "Select 3D Solution File",
+                "description": (
+                    "[yellow]Please select the 3D solution file for comparison.[/yellow]\n"
+                    "[dim]This will be compared against the 2D solution.[/dim]"
+                ),
+                "color": "green",
+                "expected_type": "3D",
+            },
+        },
+    }
+
+    # Get context for current selection
+    context = selection_info[comparison_type][file_role]
+
+    # Get all CSV files and their information
+    files = []
+    for f in os.listdir(folder_path):
+        if f.endswith(".csv"):
+            full_path = os.path.join(folder_path, f)
+            file_info = get_file_info(full_path)
+            files.append({"name": f, "path": full_path, **file_info})
+
+    if not files:
+        console.print(
+            Panel(
+                "[red]No CSV files found in this folder![/red]",
+                title="Error",
+                border_style="red",
+            )
+        )
+        return None, None
+
+    # Sort files by name
+    files.sort(key=lambda x: x["name"].lower())
+    current_page = 0
+    per_page = 10
+    total_pages = (len(files) + per_page - 1) // per_page
+
+    while True:
+        console.clear()
+
+        # Print header with context
+        console.print(
+            Panel(
+                context["description"],
+                title=context["title"],
+                border_style=context["color"],
+            )
+        )
+
+        # Create and populate table
+        table = Table(
+            box=box.ROUNDED,
+            show_header=True,
+            header_style="bold magenta",
+            border_style=context["color"],
+            title=f"Page {current_page + 1} of {total_pages}",
+        )
+
+        table.add_column("#", style="cyan", justify="center", width=4)
+        table.add_column("Filename", style="green")
+        table.add_column("Size", style="yellow", justify="right")
+        table.add_column("Last Modified", style="magenta")
+        table.add_column("Type", style="cyan", justify="center")
+
+        start_idx = current_page * per_page
+        end_idx = min(start_idx + per_page, len(files))
+
+        for idx, file in enumerate(files[start_idx:end_idx], start=start_idx + 1):
+            # Determine file type from filename
+            file_type = "Unknown"
+            if "1d" in file["name"].lower():
+                file_type = "1D"
+            elif "2d" in file["name"].lower():
+                file_type = "2D"
+            elif "3d" in file["name"].lower():
+                file_type = "3D"
+
+            table.add_row(
+                str(idx),
+                file["name"],
+                format_size(file["size"]),
+                file["modified"].strftime("%Y-%m-%d %H:%M"),
+                file_type,
+            )
+
+        console.print(table)
+
+        # Navigation help
+        nav_options = []
+        if current_page > 0:
+            nav_options.append("[cyan]'p'[/cyan] Previous")
+        if current_page < total_pages - 1:
+            nav_options.append("[cyan]'n'[/cyan] Next")
+        nav_options.extend(["[cyan]'q'[/cyan] Quit", "or enter file number"])
+
+        console.print(
+            Panel(" | ".join(nav_options), title="Navigation", border_style="cyan")
+        )
+
+        # Get user input
+        choice = console.input("\nYour choice: ").lower().strip()
+
+        if choice == "q":
+            return None, None
+        elif choice == "n" and current_page < total_pages - 1:
+            current_page += 1
+            continue
+        elif choice == "p" and current_page > 0:
+            current_page -= 1
+            continue
+
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(files):
+                selected_file = files[idx]
+
+                # Determine file type and show warning if needed
+                file_type = "Unknown"
+                if "1d" in selected_file["name"].lower():
+                    file_type = "1D"
+                elif "2d" in selected_file["name"].lower():
+                    file_type = "2D"
+                elif "3d" in selected_file["name"].lower():
+                    file_type = "3D"
+
+                warning_message = ""
+                if file_type != "Unknown" and file_type != context["expected_type"]:
+                    warning_message = f"\n[red]Warning: This appears to be a {file_type} file, but you're selecting a {context['expected_type']} solution.[/red]"
+
+                console.print(
+                    Panel(
+                        f"[green]Selected: {selected_file['name']}[/green]\n"
+                        f"[blue]Size: {format_size(selected_file['size'])}[/blue]\n"
+                        f"[magenta]Modified: {selected_file['modified'].strftime('%Y-%m-%d %H:%M')}[/magenta]\n"
+                        f"[cyan]Detected Type: {file_type}[/cyan]"
+                        f"{warning_message}\n\n"
+                        "[yellow]Press Enter to confirm or 'r' to reselect[/yellow]",
+                        title="Confirm Selection",
+                        border_style="green",
+                    )
+                )
+
+                confirm = console.input().lower().strip()
+                if confirm != "r":
+                    return selected_file["path"], [f["path"] for f in files]
+            else:
+                console.print(
+                    Panel(
+                        "[red]Invalid file number. Please try again.[/red]",
+                        border_style="red",
+                    )
+                )
+                input("Press Enter to continue...")
+        except ValueError:
+            if choice not in ["n", "p", "q"]:
+                console.print(
+                    Panel(
+                        "[red]Invalid input. Please try again.[/red]",
+                        border_style="red",
+                    )
+                )
+                input("Press Enter to continue...")
