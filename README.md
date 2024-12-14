@@ -212,24 +212,6 @@ This simulates the full trajectory in a 3D cylindrical coordinate system under m
 
 These equations describe the magnetic flux function and its derivatives in the radial and vertical directions, which are crucial for understanding the magnetic field structure in the simulation.
 
-## Main Plotter Options
-
-- **2D and 3D Visualization**: Generate detailed plots of particle trajectories.
-- **Energy and Momentum Analysis**: Visualize conservation trends over time.
-- **Peak Detection**: Identify and analyze extrema in particle motion.
-
-## Main Menu Options
-
-- **Simulation Mode Selection**: Choose between 1D, 2D, and 3D simulations.
-- **Parameter Configuration**: Modify initial conditions and simulation settings interactively.
-- **Run Simulations**: Execute simulations and monitor progress.
-
-## Main Functionalities
-
-- **High-Performance Simulations**: Efficient numerical computations using Julia.
-- **Interactive Visualization**: Python-based tools for advanced data analysis and visualization.
-- **Customizable Initial Conditions**: Easily adjust parameters to suit your research needs.
-
 ## Appendix
 
 For additional information, refer to the documentation and examples provided in the repository.
