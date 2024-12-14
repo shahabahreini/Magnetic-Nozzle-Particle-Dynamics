@@ -112,7 +112,11 @@ Alternatively, install dependencies manually:
 
 **Screen Recording**:
 
-[![Video Thumbnail](https://via.placeholder.com/640x360.png?text=Click+to+Watch+Video)](https://github.com/user-attachments/assets/b58eab73-5906-48b0-a356-a0eec0d89a57)
+<div align="center">
+  <a href="https://github.com/user-attachments/assets/b58eab73-5906-48b0-a356-a0eec0d89a57">
+    <img src="https://via.placeholder.com/640x360.png?text=Click+to+Watch+Video" alt="Video Thumbnail" width="640" height="360" style="border: 2px solid #ddd; border-radius: 10px;">
+  </a>
+</div>
 
 ### Visualization and Post-Processing
 
