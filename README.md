@@ -49,7 +49,7 @@ Ensure the following software is installed on your system:
 
 #### Method 1: Automated Setup
 
-Use the provided Julia and Python scripts for automated package management:
+Use the provided Julia and Python scripts for automated package management by selecting the **Package Management**:
 
 ```bash
 julia Start.jl
@@ -76,8 +76,6 @@ Alternatively, install dependencies manually:
     ```bash
     python3 -m pip install -r requirements.txt
     ```
-
-You can also select "Package Management" from the terminal interface to verify or update dependencies.
 
 ## Usage
 
@@ -114,7 +112,7 @@ You can also select "Package Management" from the terminal interface to verify o
 
 **Screen Recording**:
 
-<https://github.com/user-attachments/assets/b58eab73-5906-48b0-a356-a0eec0d89a57>
+[![Video Thumbnail](https://via.placeholder.com/640x360.png?text=Click+to+Watch+Video)](https://github.com/user-attachments/assets/b58eab73-5906-48b0-a356-a0eec0d89a57)
 
 ### Visualization and Post-Processing
 
