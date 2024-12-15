@@ -135,13 +135,14 @@ def get_axis_label(param, initial_condition=False):
 def plot_2d(ax, df, x_param, y_param, time, color_map, norm, label):
     """Plot 2D scatter and line plots."""
     x_, y_ = df[x_param], df[y_param]
-    ax.scatter(x_, y_, c=time, cmap=color_map, norm=norm, s=2)
+    # Map the colors through the colormap first
+    scatter_colors = color_map(norm(time))
+    ax.scatter(x_, y_, c=scatter_colors, s=2)
     ax.plot(x_, y_, alpha=0.3, label=label)
 
     # Set axis labels with Greek symbols if applicable
     ax.set_xlabel(get_axis_label(x_param))
     ax.set_ylabel(get_axis_label(y_param))
-
 
 def plot_3d(
     ax,
@@ -163,21 +164,31 @@ def plot_3d(
         x, y, z = cylindrical_to_cartesian(df["rho"], df["phi"], df["z"])
         x_label, y_label, z_label = r"$x$", r"$y$", r"$z$"
 
+    # Map the colors through the colormap first
+    scatter_colors = color_map(norm(time))
+
     if use_scatter and use_time_color:
-        ax.scatter(x, y, z, c=time, cmap=color_map, norm=norm, s=2)
+        ax.scatter(x, y, z, c=scatter_colors, s=2)
     elif use_scatter:
         ax.scatter(x, y, z, c="b", s=2)
 
     if use_time_color:
-        ax.plot(x, y, z, c=plt.cm.viridis(norm(time)), alpha=0.3, label=label)
+        # Plot segments with color gradient
+        for i in range(len(x)-1):
+            ax.plot(x[i:i+2], y[i:i+2], z[i:i+2], 
+                   c=scatter_colors[i], 
+                   alpha=0.3)
     else:
         ax.plot(x, y, z, c="b", alpha=0.3, label=label)
 
     # Add projections if requested
     if show_projections:
-        ax.plot(x, y, min(z), "k--", alpha=0.2)
-        ax.plot(x, [min(y)] * len(x), z, "k--", alpha=0.2)
-        ax.plot([min(x)] * len(y), y, z, "k--", alpha=0.2)
+        z_min = np.min(z)
+        y_min = np.min(y)
+        x_min = np.min(x)
+        ax.plot(x, y, [z_min] * len(x), "k--", alpha=0.2)
+        ax.plot(x, [y_min] * len(x), z, "k--", alpha=0.2)
+        ax.plot([x_min] * len(y), y, z, "k--", alpha=0.2)
 
     # Set axis labels
     ax.set_xlabel(x_label)
@@ -247,7 +258,7 @@ def add_parameter_textbox(ax_params, common_params, varying_params):
     )
 
 
-def Plotter(
+def Plotter_2d3d(
     file_list,
     folder_path,
     x_param,
@@ -257,50 +268,79 @@ def Plotter(
     use_scatter=True,
     use_time_color=True,
     show_projections=False,
+    progress=None,
+    task=None,
 ):
-    """Main plotting function."""
+    """
+    Main plotting function with progress tracking.
+    
+    Args:
+        file_list: List of files to process
+        folder_path: Path to the folder containing files
+        x_param: Parameter for x-axis
+        y_param: Parameter for y-axis
+        plot_type: Type of plot ('2d' or '3d')
+        coord_system: Coordinate system ('cartesian' or 'cylindrical')
+        use_scatter: Whether to use scatter plot
+        use_time_color: Whether to use time-based coloring
+        show_projections: Whether to show projections (3D only)
+        progress: Progress instance for tracking
+        task: Task ID for progress tracking
+    """
+    # Update progress if provided
+    if progress and task:
+        progress.update(task, description="[cyan]Setting up plot...", advance=10)
+
     fig, ax, ax_params = setup_plot(plot_type)
 
     common_params, varying_params, sorted_files = find_common_and_varying_params(
         file_list
     )
 
-    with Progress() as progress:
-        task = progress.add_task("[cyan]Processing files...", total=len(sorted_files))
+    # Update progress
+    if progress and task:
+        progress.update(task, description="[cyan]Processing files...", advance=10)
+        files_per_increment = max(1, len(sorted_files) // 60)  # Divide remaining 60% into steps
 
-        for fname in sorted_files:
-            full_path = os.path.join(folder_path, fname)
-            df = pd.read_csv(full_path)
-            params = extract_parameters_by_file_name(fname)
+    for i, fname in enumerate(sorted_files):
+        full_path = os.path.join(folder_path, fname)
+        df = pd.read_csv(full_path)
+        params = extract_parameters_by_file_name(fname)
 
-            time = df["timestamp"] if "timestamp" in df.columns else df.index
-            norm = colors.Normalize(vmin=time.min(), vmax=time.max())
-            color_map = plt.cm.viridis
+        time = df["timestamp"] if "timestamp" in df.columns else df.index
+        norm = colors.Normalize(vmin=time.min(), vmax=time.max())
+        color_map = plt.cm.viridis
 
-            label = ", ".join(
-                [
-                    f"${GREEK_SYMBOLS.get(param.split('=')[0], param.split('=')[0])}={param.split('=')[1]}$"
-                    for param in varying_params[fname]
-                ]
+        label = ", ".join(
+            [
+                f"${GREEK_SYMBOLS.get(param.split('=')[0], param.split('=')[0])}={param.split('=')[1]}$"
+                for param in varying_params[fname]
+            ]
+        )
+
+        if plot_type == "2d":
+            plot_2d(ax, df, x_param, y_param, time, color_map, norm, label)
+        else:
+            x, y, z = plot_3d(
+                ax,
+                df,
+                coord_system,
+                time,
+                color_map,
+                norm,
+                label,
+                use_scatter,
+                use_time_color,
+                show_projections,
             )
 
-            if plot_type == "2d":
-                plot_2d(ax, df, x_param, y_param, time, color_map, norm, label)
-            else:
-                x, y, z = plot_3d(
-                    ax,
-                    df,
-                    coord_system,
-                    time,
-                    color_map,
-                    norm,
-                    label,
-                    use_scatter,
-                    use_time_color,
-                    show_projections,
-                )
-
+        # Update progress every few files
+        if progress and task and i % files_per_increment == 0:
             progress.update(task, advance=1)
+
+    # Update progress
+    if progress and task:
+        progress.update(task, description="[cyan]Finalizing plot...", advance=10)
 
     # Add colorbar only if time coloring is used
     if use_time_color:
@@ -337,6 +377,11 @@ def Plotter(
     )
     plt.savefig(path_to_save, dpi=300, bbox_inches="tight")
     console.print(f"[green]Plot saved as:[/green] [bold]{path_to_save}[/bold]")
+
+    # Final progress update
+    if progress and task:
+        progress.update(task, description="[green]Plot generation complete!", advance=10)
+
     plt.show()
 
 
@@ -432,7 +477,7 @@ def main():
 
     # Generate the plot
     try:
-        fig, ax = Plotter(
+        fig, ax = Plotter_2d3d(
             selected_files,
             folder_path,
             x_param,

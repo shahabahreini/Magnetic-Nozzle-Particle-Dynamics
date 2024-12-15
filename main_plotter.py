@@ -3,12 +3,10 @@ import sys
 import importlib
 from blessed import Terminal
 from typing import Dict, Any, Callable
-import yaml
 import pandas as pd
 import numpy as np
 import pkg_resources
 import subprocess
-from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 from rich.console import Console
 from rich.panel import Panel
@@ -23,6 +21,7 @@ from rich.progress import (
 from rich.table import Table
 from rich.prompt import Prompt, IntPrompt, Confirm
 from rich import box
+from rich.box import ROUNDED, SQUARE
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -31,7 +30,7 @@ from modules import (
     extract_parameters_by_file_name,
     list_csv_files,
     list_folders,
-    find_common_and_varying_params,  # This is now properly imported
+    find_common_and_varying_params,
 )
 from peakfinder import (
     plotter,
@@ -42,7 +41,7 @@ from peakfinder import (
     Configuration,
 )
 from plotter_2D import plot_csv_files, select_plotting_parameters
-from plotter_3D import Plotter, display_available_parameters, get_parameter_from_input
+from plotter_3D import Plotter_2d3d, display_available_parameters, get_parameter_from_input
 from plotter_comparison_1D_exact import (
     list_csv_files_noFolder,
     select_file_by_number,
@@ -51,7 +50,7 @@ from plotter_comparison_1D_exact import (
     save_plots_with_timestamp,
 )
 from plotter_comparison_2D_3D import plot_comparison
-from modules.file_utils import list_comparison_files
+from modules.file_utils import list_comparison_files, list_items
 from plotter_energy_momentum_conservasion import CONFIG, plotter_conservation
 
 
@@ -395,7 +394,7 @@ def plotter_2d_menu():
                     folder_path = os.path.join(".", selected_folder)
                 else:
                     folder_path = os.getcwd()
-                    selected_file, all_files = list_csv_files(folder_path)
+                    selected_file = list_items(root=".", select_type="file", file_keywords=["2D"])
                     selected_files = [selected_file]
 
                 param_options = [
@@ -466,7 +465,7 @@ def plotter_3d_menu():
                     folder_path = os.path.join(".", selected_folder)
                 else:
                     folder_path = os.getcwd()
-                    selected_file, all_files = list_csv_files(folder_path)
+                    selected_file = list_items(root=".", select_type="file", file_keywords=["3D"])
                     selected_files = [selected_file]
 
                 # Read the first CSV file to get available parameters
@@ -497,19 +496,41 @@ def plotter_3d_menu():
 
                 with Progress() as progress:
                     task = progress.add_task("[cyan]Generating plot...", total=100)
-                    Plotter(
-                        selected_files,
-                        folder_path,
-                        x_param,
-                        y_param,
-                        plot_type,
-                        coord_system,
-                        use_scatter,
-                        use_time_color,
-                        show_projections,
-                        progress=progress,
-                        task=task,
-                    )
+                    
+                    try:
+                        Plotter_2d3d(
+                            selected_files,
+                            folder_path,
+                            x_param,
+                            y_param,
+                            plot_type,
+                            coord_system,
+                            use_scatter,
+                            use_time_color,
+                            show_projections,
+                            progress=progress,
+                            task=task
+                        )
+                        
+                        console.print('\n')
+                        console.print(
+                            Panel(
+                                "[green]✓ Plot generated successfully![/green]",
+                                title="Success",
+                                border_style="green",
+                            )
+                        )
+                        
+                    except Exception as e:
+                        console.print('\n')
+                        console.print(
+                            Panel(
+                                f"[red]Error during plot generation:",
+                                title="Error",
+                                border_style="red",
+                            )
+                        )
+                        raise
 
                 input(term.bold_green("\nPress Enter to continue..."))
             except Exception as e:
@@ -1006,8 +1027,7 @@ def conservation_plots_menu():
                     selected_folder, _ = list_folders()
                     folder_path = os.path.join(".", selected_folder)
                 else:
-                    folder_path = os.getcwd()
-                    chosen_csv = search_for_export_csv()
+                    chosen_csv = list_items(root=".", select_type="file", file_keywords=["3D"])
                     if not chosen_csv:
                         console.print("[red]No suitable CSV files found.[/red]")
                         input(term.bold_red("\nPress Enter to continue..."))
@@ -1038,8 +1058,9 @@ def conservation_plots_menu():
                             export_file_name,
                             parameters,
                             plot_type,
+                            task
                         )
-
+                        console.print('\n')
                         console.print(
                             Panel(
                                 f"[green]✓ {options[choice][0]} generated successfully![/green]\n"
@@ -1050,6 +1071,7 @@ def conservation_plots_menu():
                         )
 
                     except Exception as e:
+                        console.print('\n')
                         console.print(
                             Panel(
                                 f"[red]Error during plot generation:[/red]\n{str(e)}",

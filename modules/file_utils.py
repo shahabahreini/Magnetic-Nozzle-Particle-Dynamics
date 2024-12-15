@@ -299,53 +299,52 @@ def read_exported_csv_2Dsimulation(path_, fname_):
 
 def list_folders(root=".", per_page=40):
     """
-    Enhanced folder listing function with pagination and detailed information.
-    Lists folders first, then CSV files in selected folder.
-
-    Args:
-        root (str): Root directory to list folders from
-        per_page (int): Number of items to display per page
-
-    Returns:
-        tuple: (selected_folder_path, selected_file_path) or (None, None) if cancelled
+    Enhanced folder and file listing function with pagination and detailed information.
+    Lists folders first, then CSV files in the current directory.
     """
     import os
     from datetime import datetime
     import math
     from pathlib import Path
+    from rich.console import Console
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich.text import Text
+    from rich import box
 
-    def clear_screen():
-        """Clear the terminal screen"""
-        os.system("cls" if os.name == "nt" else "clear")
+    console = Console()
 
-    def get_folder_info(folder_path):
-        """Get detailed information about a folder"""
-        path = Path(folder_path)
-        stats = path.stat()
-
-        try:
-            items = list(path.iterdir())
-            num_files = len([x for x in items if x.is_file()])
-            num_folders = len([x for x in items if x.is_dir()])
-        except PermissionError:
-            num_files = num_folders = -1
-
-        total_size = 0
-        try:
-            for item in path.rglob("*"):
-                if item.is_file():
-                    total_size += item.stat().st_size
-        except PermissionError:
-            total_size = -1
-
-        return {
-            "name": path.name,
-            "modified": stats.st_mtime,
-            "num_files": num_files,
-            "num_folders": num_folders,
-            "size": total_size,
+    def get_item_info(path):
+        """Get detailed information about a folder or file"""
+        stats = os.stat(path)
+        is_dir = os.path.isdir(path)
+        
+        info = {
+            "name": os.path.basename(path),
+            "modified": datetime.fromtimestamp(stats.st_mtime),
             "path": str(path),
+            "is_dir": is_dir
         }
+        
+        if is_dir:
+            try:
+                items = list(os.scandir(path))
+                info["num_files"] = len([x for x in items if x.is_file()])
+                info["num_folders"] = len([x for x in items if x.is_dir()])
+                
+                total_size = 0
+                for item in Path(path).rglob("*"):
+                    if item.is_file():
+                        total_size += item.stat().st_size
+                info["size"] = total_size
+            except PermissionError:
+                info["num_files"] = -1
+                info["num_folders"] = -1
+                info["size"] = -1
+        else:
+            info["size"] = stats.st_size
+            
+        return info
 
     def format_size(size):
         """Format size in human-readable format"""
@@ -357,127 +356,103 @@ def list_folders(root=".", per_page=40):
             size /= 1024
         return f"{size:.1f} TB"
 
-    def print_header(title):
-        clear_screen()
-        print("\n" + "=" * 100)
-        print(" " * ((100 - len(title)) // 2) + title)
-        print("=" * 100 + "\n")
+    def display_items_table(items, current_page, total_pages):
+        """Display folders and files in a rich formatted table"""
+        console.clear()
 
-    def print_folder_table(folders, current_page=0, per_page=10):
-        """Print folders in a formatted table"""
-        start_idx = current_page * per_page
-        end_idx = min(start_idx + per_page, len(folders))
-        total_pages = math.ceil(len(folders) / per_page)
-
-        print(f"\nPage {current_page + 1} of {total_pages}")
-        print("-" * 100)
-        print(
-            f"{'#':4} {'Folder Name':<30} {'Size':>12} {'Files':>8} {'Folders':>8} {'Last Modified':>20}"
+        console.print(
+            Panel(
+                Text(f"Contents of '{os.path.abspath(root)}'", style="bold white", justify="center"),
+                style="blue",
+            )
         )
-        print("-" * 100)
 
-        for idx, folder in enumerate(folders[start_idx:end_idx], start=start_idx + 1):
-            modified_time = datetime.fromtimestamp(folder["modified"]).strftime(
-                "%Y-%m-%d %H:%M"
-            )
-            files_str = "N/A" if folder["num_files"] < 0 else str(folder["num_files"])
-            folders_str = (
-                "N/A" if folder["num_folders"] < 0 else str(folder["num_folders"])
-            )
-            size_str = format_size(folder["size"])
+        table = Table(
+            box=box.ROUNDED,
+            show_header=True,
+            header_style="bold magenta",
+            border_style="blue",
+            title=f"Page {current_page + 1} of {total_pages}",
+        )
 
-            print(
-                f"{idx:3}. {folder['name']:<30} {size_str:>12} {files_str:>8} {folders_str:>8} {modified_time:>20}"
-            )
+        table.add_column("#", style="cyan", justify="center", width=4)
+        table.add_column("Type", style="yellow", width=6)
+        table.add_column("Name", style="green")
+        table.add_column("Size", style="yellow", justify="right")
+        table.add_column("Files", style="blue", justify="right", width=8)
+        table.add_column("Folders", style="magenta", justify="right", width=8)
+        table.add_column("Last Modified", style="cyan")
 
-        print("-" * 100)
-
-    def list_csv_files(folder_path, current_page=0, per_page=10):
-        """List CSV files in the selected folder"""
-        csv_files = [f for f in os.listdir(folder_path) if f.lower().endswith(".csv")]
-        if not csv_files:
-            print("\nNo CSV files found in this folder!")
-            return None
-
-        csv_files.sort()
-        total_pages = math.ceil(len(csv_files) / per_page)
         start_idx = current_page * per_page
-        end_idx = min(start_idx + per_page, len(csv_files))
+        end_idx = min(start_idx + per_page, len(items))
 
-        print_header(f"CSV Files in '{os.path.basename(folder_path)}'")
-        print(f"Page {current_page + 1} of {total_pages}")
-        print("-" * 100)
-        print(f"{'#':4} {'Filename':<90}")
-        print("-" * 100)
+        for idx, item in enumerate(items[start_idx:end_idx], start=start_idx + 1):
+            if item["is_dir"]:
+                files_str = "N/A" if item["num_files"] < 0 else str(item["num_files"])
+                folders_str = "N/A" if item["num_folders"] < 0 else str(item["num_folders"])
+                item_type = "[blue]DIR[/blue]"
+            else:
+                files_str = "-"
+                folders_str = "-"
+                item_type = "[green]CSV[/green]"
+            
+            table.add_row(
+                str(idx),
+                item_type,
+                item["name"],
+                format_size(item["size"]),
+                files_str,
+                folders_str,
+                item["modified"].strftime("%Y-%m-%d %H:%M"),
+            )
 
-        for idx, file in enumerate(csv_files[start_idx:end_idx], start=start_idx + 1):
-            print(f"{idx:3}. {file:<90}")
-
-        print("-" * 100)
-
-        if total_pages > 1:
-            print("\nNavigation:")
-            print("  'n' - Next page")
-            print("  'p' - Previous page")
-            print("  'b' - Back to folder selection")
-            print("  'q' - Quit")
-            print("  Or enter file number to select")
-        else:
-            print("\nEnter file number to select, 'b' for back, or 'q' to quit")
-
-        while True:
-            choice = input("\nYour choice: ").lower().strip()
-
-            if choice == "q":
-                return None
-            elif choice == "b":
-                return "back"
-            elif choice == "n" and current_page < total_pages - 1:
-                return list_csv_files(folder_path, current_page + 1, per_page)
-            elif choice == "p" and current_page > 0:
-                return list_csv_files(folder_path, current_page - 1, per_page)
-
-            try:
-                idx = int(choice) - 1
-                if 0 <= idx < len(csv_files):
-                    return [csv_files[idx]]
-                else:
-                    print("\nInvalid file number. Please try again.")
-            except ValueError:
-                if choice not in ["n", "p", "b", "q"]:
-                    print("\nInvalid input. Please try again.")
+        console.print(table)
 
     try:
+        # Get both folders and CSV files
+        items = []
+        
+        # First get folders
+        for item in os.scandir(root):
+            if item.is_dir():
+                items.append(get_item_info(item.path))
+                
+        # Then get CSV files
+        for item in os.scandir(root):
+            if item.is_file() and item.name.lower().endswith('.csv'):
+                items.append(get_item_info(item.path))
+
+        if not items:
+            console.print(
+                Panel(
+                    "[red]No folders or CSV files found in the current directory![/red]",
+                    title="Error",
+                    border_style="red",
+                )
+            )
+            return None, None
+
+        # Sort items: folders first (alphabetically), then files (alphabetically)
+        items.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
+        
+        current_page = 0
+        total_pages = math.ceil(len(items) / per_page)
+
         while True:
-            # Get folders and their information
-            folders = []
-            for item in os.scandir(root):
-                if item.is_dir():
-                    folders.append(get_folder_info(item.path))
+            display_items_table(items, current_page, total_pages)
 
-            if not folders:
-                print("\nNo folders found in the current directory!")
-                return None, None
+            nav_options = []
+            if current_page > 0:
+                nav_options.append("[cyan]'p'[/cyan] Previous")
+            if current_page < total_pages - 1:
+                nav_options.append("[cyan]'n'[/cyan] Next")
+            nav_options.extend(["[cyan]'q'[/cyan] Quit", "or enter number to select"])
 
-            # Sort folders by name
-            folders.sort(key=lambda x: x["name"].lower())
+            console.print(
+                Panel(" | ".join(nav_options), title="Navigation", border_style="green")
+            )
 
-            current_page = 0
-            total_pages = math.ceil(len(folders) / per_page)
-
-            print_header("Folder Selection")
-            print_folder_table(folders, current_page, per_page)
-
-            if total_pages > 1:
-                print("\nNavigation:")
-                print("  'n' - Next page")
-                print("  'p' - Previous page")
-                print("  'q' - Quit")
-                print("  Or enter folder number to select")
-            else:
-                print("\nEnter folder number to select, or 'q' to quit")
-
-            choice = input("\nYour choice: ").lower().strip()
+            choice = console.input("\nYour choice: ").lower().strip()
 
             if choice == "q":
                 return None, None
@@ -490,22 +465,59 @@ def list_folders(root=".", per_page=40):
 
             try:
                 idx = int(choice) - 1
-                if 0 <= idx < len(folders):
-                    selected_folder = folders[idx]
-                    folder_path = selected_folder["path"]
-                    # List CSV files in the selected folder
-                    selected_file = list_csv_files(folder_path)
-                    if selected_file == "back":
-                        continue
-                    return folder_path, selected_file
+                if 0 <= idx < len(items):
+                    selected_item = items[idx]
+                    
+                    if selected_item["is_dir"]:
+                        console.print(
+                            Panel(
+                                f"[green]Selected Folder: {selected_item['name']}[/green]\n"
+                                f"[blue]Path: {selected_item['path']}[/blue]\n"
+                                f"[magenta]Files: {selected_item['num_files']} | Folders: {selected_item['num_folders']}[/magenta]",
+                                title="Folder Selected",
+                                border_style="green",
+                            )
+                        )
+                        # Return folder path and None for file path
+                        return selected_item["path"], None
+                    else:
+                        console.print(
+                            Panel(
+                                f"[green]Selected File: {selected_item['name']}[/green]\n"
+                                f"[blue]Size: {format_size(selected_item['size'])}[/blue]\n"
+                                f"[magenta]Modified: {selected_item['modified'].strftime('%Y-%m-%d %H:%M')}[/magenta]",
+                                title="File Selected",
+                                border_style="green",
+                            )
+                        )
+                        # Return None for folder path and file path
+                        return None, selected_item["path"]
                 else:
-                    print("\nInvalid folder number. Please try again.")
+                    console.print(
+                        Panel(
+                            "[red]Invalid number. Please try again.[/red]",
+                            border_style="red",
+                        )
+                    )
+                    console.input("Press Enter to continue...")
             except ValueError:
                 if choice not in ["n", "p", "q"]:
-                    print("\nInvalid input. Please try again.")
+                    console.print(
+                        Panel(
+                            "[red]Invalid input. Please try again.[/red]",
+                            border_style="red",
+                        )
+                    )
+                    console.input("Press Enter to continue...")
 
     except Exception as e:
-        print(f"\nError: {str(e)}")
+        console.print(
+            Panel(
+                f"[red]Error: {str(e)}[/red]",
+                title="Error",
+                border_style="red",
+            )
+        )
         return None, None
 
 
@@ -942,3 +954,304 @@ def list_comparison_files(folder_path, comparison_type, file_role):
                     )
                 )
                 input("Press Enter to continue...")
+
+
+def list_items(root=".", select_type="file", file_extension=".csv", file_keywords=None, per_page=40):
+    """
+    Enhanced folder and file listing function with pagination and detailed information.
+    
+    Args:
+        root (str): Root directory to list items from
+        select_type (str): Type of selection - "file" or "folder"
+        file_extension (str): File extension to filter (e.g., ".csv")
+        file_keywords (list): List of keywords to filter files (e.g., ["1D", "2D", "3D"])
+        per_page (int): Number of items to display per page
+    
+    Returns:
+        str: Selected path (file or folder path depending on select_type)
+    """
+    import os
+    from datetime import datetime
+    import math
+    from pathlib import Path
+    from rich.console import Console
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich.text import Text
+    from rich import box
+
+    console = Console()
+
+    def matches_keywords(filename):
+        """Check if filename matches any of the keywords"""
+        if not file_keywords:
+            return True
+        return any(keyword.lower() in filename.lower() for keyword in file_keywords)
+
+    def get_item_info(path):
+        """Get detailed information about a folder or file"""
+        stats = os.stat(path)
+        is_dir = os.path.isdir(path)
+        
+        info = {
+            "name": os.path.basename(path),
+            "modified": datetime.fromtimestamp(stats.st_mtime),
+            "path": str(path),
+            "is_dir": is_dir
+        }
+        
+        if is_dir:
+            try:
+                items = list(os.scandir(path))
+                info["num_files"] = len([x for x in items if x.is_file()])
+                info["num_folders"] = len([x for x in items if x.is_dir()])
+                
+                # Count only files that match both extension and keywords
+                target_files = [x for x in items if x.is_file() and 
+                              x.name.lower().endswith(file_extension) and 
+                              matches_keywords(x.name)]
+                info["num_target_files"] = len(target_files)
+                
+                total_size = 0
+                for item in Path(path).rglob("*"):
+                    if item.is_file():
+                        total_size += item.stat().st_size
+                info["size"] = total_size
+            except PermissionError:
+                info["num_files"] = -1
+                info["num_folders"] = -1
+                info["num_target_files"] = -1
+                info["size"] = -1
+        else:
+            info["size"] = stats.st_size
+            
+        return info
+
+    def format_size(size):
+        """Format size in human-readable format"""
+        if size < 0:
+            return "N/A"
+        for unit in ["B", "KB", "MB", "GB"]:
+            if size < 1024:
+                return f"{size:.1f} {unit}"
+            size /= 1024
+        return f"{size:.1f} TB"
+
+    def display_items_table(items, current_page, total_pages, show_files=True):
+        """Display folders and optionally files in a rich formatted table"""
+        console.clear()
+
+        # Create header text
+        header_text = f"Contents of '{os.path.abspath(root)}'"
+        if file_keywords:
+            header_text += f"\nFiltering for: {', '.join(file_keywords)}"
+
+        console.print(
+            Panel(
+                Text(header_text, style="bold white", justify="center"),
+                style="blue",
+            )
+        )
+
+        table = Table(
+            box=box.ROUNDED,
+            show_header=True,
+            header_style="bold magenta",
+            border_style="blue",
+            title=f"Page {current_page + 1} of {total_pages}",
+        )
+
+        table.add_column("#", style="cyan", justify="center", width=4)
+        table.add_column("Type", style="yellow", width=6)
+        table.add_column("Name", style="green")
+        table.add_column("Size", style="yellow", justify="right")
+        if show_files:
+            filtered_label = f"Filtered {file_extension.upper()}"
+            table.add_column(filtered_label, style="blue", justify="right", width=10)
+        table.add_column("Files", style="blue", justify="right", width=8)
+        table.add_column("Folders", style="magenta", justify="right", width=8)
+        table.add_column("Last Modified", style="cyan")
+
+        start_idx = current_page * per_page
+        end_idx = min(start_idx + per_page, len(items))
+
+        for idx, item in enumerate(items[start_idx:end_idx], start=start_idx + 1):
+            if item["is_dir"]:
+                files_str = "N/A" if item["num_files"] < 0 else str(item["num_files"])
+                folders_str = "N/A" if item["num_folders"] < 0 else str(item["num_folders"])
+                target_files_str = "N/A" if item["num_target_files"] < 0 else str(item["num_target_files"])
+                item_type = "[blue]DIR[/blue]"
+                
+                row_data = [
+                    str(idx),
+                    item_type,
+                    item["name"],
+                    format_size(item["size"])
+                ]
+                if show_files:
+                    row_data.append(target_files_str)
+                row_data.extend([
+                    files_str,
+                    folders_str,
+                    item["modified"].strftime("%Y-%m-%d %H:%M")
+                ])
+            else:
+                item_type = f"[green]{file_extension.upper()[1:]}[/green]"
+                row_data = [
+                    str(idx),
+                    item_type,
+                    item["name"],
+                    format_size(item["size"])
+                ]
+                if show_files:
+                    row_data.append("-")
+                row_data.extend([
+                    "-",
+                    "-",
+                    item["modified"].strftime("%Y-%m-%d %H:%M")
+                ])
+            
+            table.add_row(*row_data)
+
+        console.print(table)
+
+    def browse_location(current_path):
+        """Browse the current location and handle navigation"""
+        while True:
+            # Get items in current location
+            items = []
+            
+            # Get folders
+            for item in os.scandir(current_path):
+                if item.is_dir():
+                    items.append(get_item_info(item.path))
+            
+            # Get files if we're selecting files
+            if select_type == "file":
+                for item in os.scandir(current_path):
+                    if (item.is_file() and 
+                        item.name.lower().endswith(file_extension) and 
+                        matches_keywords(item.name)):
+                        items.append(get_item_info(item.path))
+
+            if not items:
+                message = "[red]No "
+                if select_type == "folder":
+                    message += "folders"
+                else:
+                    message += f"{file_extension} files"
+                    if file_keywords:
+                        message += f" matching keywords: {', '.join(file_keywords)}"
+                message += " found in this directory![/red]"
+                
+                console.print(
+                    Panel(
+                        message,
+                        title="Error",
+                        border_style="red",
+                    )
+                )
+                if current_path != root:
+                    return "back"
+                return None
+
+            # Sort items: folders first (alphabetically), then files (alphabetically)
+            items.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
+            
+            current_page = 0
+            total_pages = math.ceil(len(items) / per_page)
+
+            while True:
+                display_items_table(items, current_page, total_pages, show_files=(select_type == "file"))
+
+                nav_options = []
+                if current_page > 0:
+                    nav_options.append("[cyan]'p'[/cyan] Previous")
+                if current_page < total_pages - 1:
+                    nav_options.append("[cyan]'n'[/cyan] Next")
+                if current_path != root:
+                    nav_options.append("[cyan]'b'[/cyan] Back")
+                nav_options.extend(["[cyan]'q'[/cyan] Quit", "or enter number to select"])
+
+                console.print(
+                    Panel(" | ".join(nav_options), title="Navigation", border_style="green")
+                )
+
+                choice = console.input("\nYour choice: ").lower().strip()
+
+                if choice == "q":
+                    return None
+                elif choice == "b" and current_path != root:
+                    return "back"
+                elif choice == "n" and current_page < total_pages - 1:
+                    current_page += 1
+                    continue
+                elif choice == "p" and current_page > 0:
+                    current_page -= 1
+                    continue
+
+                try:
+                    idx = int(choice) - 1
+                    if 0 <= idx < len(items):
+                        selected_item = items[idx]
+                        
+                        if selected_item["is_dir"]:
+                            if select_type == "folder":
+                                console.print(
+                                    Panel(
+                                        f"[green]Selected Folder: {selected_item['name']}[/green]\n"
+                                        f"[blue]Path: {selected_item['path']}[/blue]\n"
+                                        f"[magenta]Files: {selected_item['num_files']} | Folders: {selected_item['num_folders']}[/magenta]",
+                                        title="Folder Selected",
+                                        border_style="green",
+                                    )
+                                )
+                                return selected_item["path"]
+                            else:
+                                # Navigate into the folder
+                                result = browse_location(selected_item["path"])
+                                if result == "back":
+                                    break
+                                if result is not None:
+                                    return result
+                        else:
+                            if select_type == "file":
+                                console.print(
+                                    Panel(
+                                        f"[green]Selected File: {selected_item['name']}[/green]\n"
+                                        f"[blue]Size: {format_size(selected_item['size'])}[/blue]\n"
+                                        f"[magenta]Modified: {selected_item['modified'].strftime('%Y-%m-%d %H:%M')}[/magenta]",
+                                        title="File Selected",
+                                        border_style="green",
+                                    )
+                                )
+                                return selected_item["path"]
+                    else:
+                        console.print(
+                            Panel(
+                                "[red]Invalid number. Please try again.[/red]",
+                                border_style="red",
+                            )
+                        )
+                        console.input("Press Enter to continue...")
+                except ValueError:
+                    if choice not in ["n", "p", "b", "q"]:
+                        console.print(
+                            Panel(
+                                "[red]Invalid input. Please try again.[/red]",
+                                border_style="red",
+                            )
+                        )
+                        console.input("Press Enter to continue...")
+
+    try:
+        return browse_location(root)
+    except Exception as e:
+        console.print(
+            Panel(
+                f"[red]Error: {str(e)}[/red]",
+                title="Error",
+                border_style="red",
+            )
+        )
+        return None

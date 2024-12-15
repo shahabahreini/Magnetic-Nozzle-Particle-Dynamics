@@ -7,7 +7,6 @@ import numpy as np
 import datetime
 
 # Import necessary libraries
-from scipy.signal import argrelextrema
 from findpeaks import findpeaks
 import yaml
 from plotter_violation import load_and_calculate_variation
