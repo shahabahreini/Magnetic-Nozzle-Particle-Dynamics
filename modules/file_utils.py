@@ -1115,9 +1115,80 @@ def list_items(root=".", select_type="file", file_extension=".csv", file_keyword
 
         console.print(table)
 
+    def check_folder_contents(path, recursive=False):
+        """
+        Check if folder contains any relevant items
+        Returns: (has_folders, has_matching_files, total_matching_files)
+        """
+        has_folders = False
+        has_matching_files = False
+        total_matching_files = 0
+        
+        try:
+            for item in os.scandir(path):
+                if item.is_dir():
+                    has_folders = True
+                    if recursive:
+                        _, _, subfolder_files = check_folder_contents(item.path, recursive=True)
+                        total_matching_files += subfolder_files
+                elif item.is_file():
+                    if item.name.lower().endswith(file_extension) and matches_keywords(item.name):
+                        has_matching_files = True
+                        total_matching_files += 1
+                        
+                if not recursive and (has_folders or has_matching_files):
+                    break
+                    
+        except PermissionError:
+            return False, False, 0
+            
+        return has_folders, has_matching_files, total_matching_files
+
+    def display_folder_preview(path):
+        """Display a preview of folder contents"""
+        has_folders, has_files, total_files = check_folder_contents(path, recursive=True)
+        
+        preview = Table.grid(padding=1)
+        preview.add_column(style="cyan")
+        preview.add_column(style="green")
+        
+        if has_folders:
+            preview.add_row("📁 Contains subfolders:", "Yes")
+        else:
+            preview.add_row("📁 Contains subfolders:", "[yellow]No[/yellow]")
+            
+        if has_files:
+            preview.add_row(f"📄 Matching {file_extension} files:", f"{total_files}")
+        else:
+            preview.add_row(f"📄 Matching {file_extension} files:", "[yellow]None[/yellow]")
+            
+        return preview
+
     def browse_location(current_path):
         """Browse the current location and handle navigation"""
         while True:
+            # Initial check for empty directory
+            has_folders, has_files, _ = check_folder_contents(current_path)
+            
+            if not has_folders and not has_files:
+                message = [
+                    "[red]This directory is empty or contains no relevant items![/red]\n",
+                    "[yellow]Requirements:[/yellow]"
+                ]
+                
+                if select_type == "folder":
+                    message.append("- Accessible subfolders")
+                else:
+                    message.append(f"- Files with {file_extension} extension")
+                    if file_keywords:
+                        message.append(f"- Files containing keywords: {', '.join(file_keywords)}")
+                
+                console.print(Panel("\n".join(message), title="Empty Directory", border_style="red"))
+                
+                if current_path != root:
+                    return "back"
+                return None
+
             # Get items in current location
             items = []
             
@@ -1134,30 +1205,9 @@ def list_items(root=".", select_type="file", file_extension=".csv", file_keyword
                         matches_keywords(item.name)):
                         items.append(get_item_info(item.path))
 
-            if not items:
-                message = "[red]No "
-                if select_type == "folder":
-                    message += "folders"
-                else:
-                    message += f"{file_extension} files"
-                    if file_keywords:
-                        message += f" matching keywords: {', '.join(file_keywords)}"
-                message += " found in this directory![/red]"
-                
-                console.print(
-                    Panel(
-                        message,
-                        title="Error",
-                        border_style="red",
-                    )
-                )
-                if current_path != root:
-                    return "back"
-                return None
-
             # Sort items: folders first (alphabetically), then files (alphabetically)
             items.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
-            
+
             current_page = 0
             total_pages = math.ceil(len(items) / per_page)
 
@@ -1196,6 +1246,10 @@ def list_items(root=".", select_type="file", file_extension=".csv", file_keyword
                         selected_item = items[idx]
                         
                         if selected_item["is_dir"]:
+                            # Show folder preview before entering
+                            console.print("\nFolder Preview:")
+                            console.print(display_folder_preview(selected_item["path"]))
+                            
                             if select_type == "folder":
                                 console.print(
                                     Panel(
@@ -1208,6 +1262,21 @@ def list_items(root=".", select_type="file", file_extension=".csv", file_keyword
                                 )
                                 return selected_item["path"]
                             else:
+                                # Check if folder has any matching files before entering
+                                has_folders, has_files, total_files = check_folder_contents(selected_item["path"], recursive=True)
+                                
+                                if not has_files:
+                                    console.print(
+                                        Panel(
+                                            f"[yellow]Warning: This folder contains no matching {file_extension} files.\n"
+                                            "Do you want to enter anyway?[/yellow]",
+                                            title="No Matching Files",
+                                            border_style="yellow",
+                                        )
+                                    )
+                                    if console.input("Enter folder? (y/n): ").lower() != 'y':
+                                        continue
+
                                 # Navigate into the folder
                                 result = browse_location(selected_item["path"])
                                 if result == "back":
