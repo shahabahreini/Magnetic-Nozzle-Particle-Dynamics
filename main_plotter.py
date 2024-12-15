@@ -214,36 +214,9 @@ def print_footer():
     print(term.bold_green("=" * 50))
 
 
-def get_csv_file():
-    """Helper function to get CSV file from user"""
-    print(term.clear)
-    print(term.bold_blue("\nSelect CSV file:"))
-
-    # List all CSV files in current directory
-    csv_files = [f for f in os.listdir() if f.endswith(".csv")]
-
-    if not csv_files:
-        print(term.red("\nNo CSV files found in current directory!"))
-        return None
-
-    for i, file in enumerate(csv_files, 1):
-        print(term.cyan(f"[{i}] {file}"))
-
-    try:
-        choice = int(input(term.bold("\nEnter file number: "))) - 1
-        if 0 <= choice < len(csv_files):
-            return csv_files[choice].replace(".csv", "")
-        else:
-            print(term.red("\nInvalid selection!"))
-            return None
-    except ValueError:
-        print(term.red("\nInvalid input!"))
-        return None
-
-
 def run_adiabatic_condition_analysis():
     """Run the adiabatic condition analysis"""
-    fname = get_csv_file()
+    fname = list_items(root=".", select_type="file", file_keywords=["3D"])
     if fname:
         try:
             plotter(os.getcwd(), fname)
@@ -254,7 +227,7 @@ def run_adiabatic_condition_analysis():
 
 def run_amplitude_analysis():
     """Run the amplitude analysis"""
-    fname = get_csv_file()
+    fname = list_items(root=".", select_type="file", file_keywords=["3D"])
     if fname:
         try:
             plot_amplitude_analysis_separate(os.getcwd(), fname, True)
@@ -265,7 +238,7 @@ def run_amplitude_analysis():
 
 def run_adiabatic_invariance_check():
     """Run the adiabatic invariance check"""
-    fname = get_csv_file()
+    fname = list_items(root=".", select_type="file", file_keywords=["3D"])
     if fname:
         try:
             plotter_adiabatic_invariance_check(os.getcwd(), fname, True)
@@ -276,11 +249,11 @@ def run_adiabatic_invariance_check():
 
 def run_eta_fluctuations_analysis():
     """Run the η fluctuations analysis"""
-    fname = get_csv_file()
+    fname = list_items(root=".", select_type="file", file_keywords=["3D"])
     if fname:
         try:
             # First read the data
-            df = read_exported_csv_2Dsimulation(os.getcwd(), fname + ".csv")
+            df = read_exported_csv_2Dsimulation(os.getcwd(), fname)
             plot_eta_fluctuations(df, fname, True)
             plt.show()
         except Exception as e:

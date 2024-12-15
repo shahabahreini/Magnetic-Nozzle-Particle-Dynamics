@@ -268,7 +268,7 @@ def plotter(path_, fname_, show_growth_rate=False):
         filelst = os.listdir(path_)
     else:
         path_ = ""
-        filelst = [fname_ + ".csv"]
+        filelst = [fname_]
 
     # Data collection
     for fname in filelst:
@@ -731,7 +731,7 @@ def plot_amplitude_analysis_separate(path_, fname_, show_plot=False):
         filelst = os.listdir(path_)
     else:
         path_ = ""
-        filelst = [fname_ + ".csv"]
+        filelst = [fname_]
 
     # Generate color palette
     colors = plt.cm.viridis(np.linspace(0.1, 0.9, len(filelst)))
@@ -1118,7 +1118,7 @@ def plotter_adiabatic_invariance_check(path_, fname_, show_frequency_analysis=Fa
         filelst = [f for f in os.listdir(base_path) if f.endswith(".csv")]
     else:
         base_path = ""
-        filelst = [fname_ + ".csv"]
+        filelst = [fname_]
 
     if show_frequency_analysis:
         fig = plt.figure(figsize=(12, 10), dpi=150)
