@@ -47,10 +47,10 @@ Use the provided Julia and Python scripts for automated package management by se
 julia Start.jl
 ```
 
-and
+and when you run the `visualization.py` it automatically check and install all requirements:
 
 ```bash
-python3 main_plotter.py
+python3 visualization.py
 ```
 
 #### Method 2: Manual Setup
@@ -108,7 +108,7 @@ Alternatively, install dependencies manually:
 
 ### Visualization and Post-Processing
 
-After running simulations, use the `main_plotter.py` script for all visualization tasks. The available options include:
+After running simulations, use the `visualization.py` script for all visualization tasks. The available options include:
 
 - **Unified Terminal Interface**: Run 1D, 2D, and 3D simulations directly from a Julia-based menu-driven UI.
 - **Interactive Parameter Configuration**: Modify initial conditions and simulation settings without changing source code.
@@ -123,7 +123,7 @@ After running simulations, use the `main_plotter.py` script for all visualizatio
 Example usage:
 
 ```bash
-python main_plotter.py
+python3 visualization.py
 ```
 
 Follow the interactive prompts to select the desired analysis or plotting mode.
