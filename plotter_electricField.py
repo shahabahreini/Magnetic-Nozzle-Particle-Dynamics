@@ -1,13 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-from mayavi import mlab
 import pyvista as pv
 import holoviews as hv
 from holoviews import opts
+import os
+import sys
+from colorama import init, Fore, Style
+from datetime import datetime
+
 
 # Initialize HoloViews with the Bokeh backend
-hv.extension('bokeh')
+hv.extension("bokeh")
 pv.global_theme.allow_empty_mesh = True
 
 # Enable or disable specific visualizations
@@ -21,6 +25,24 @@ MAYAVI_VECTOR_FIELD = False
 PYVISTA_STREAMLINES = False
 HOLOVIEWS_QUAD_MESH = False
 
+
+# Plot parameters
+PLOT_CONFIG = {
+    # Resolution of the saved plots (dots per inch)
+    "save-dpi": 300,
+    "show-dpi": 80,
+    "font_size": 12,  # Base font size for plot text
+    "legend_font_size": 10,  # Font size for legend text
+    "tick_label_size": 10,  # Font size for axis tick labels
+    # Size of the figure in inches (width, height)
+    "figure_size": (12, 10),
+    "colorbar_pad": 0.1,  # Padding between plots and colorbars
+    # Folder to save plots
+    "output_folder": os.path.join("plots", "EField_Plots"),
+    "show_plots": True,  # Set to True to display plots on screen after saving
+}
+
+
 # Physical and plot constants
 PHYSICS_PARAMS = {
     "B0": 1.0,  # Magnetic field strength (T)
@@ -32,37 +54,89 @@ PHYSICS_PARAMS = {
 
 delta_star = PHYSICS_PARAMS["r0"] / PHYSICS_PARAMS["r_star"]
 
+
+def create_directory(path):
+    """Create a directory if it doesn't exist."""
+    try:
+        os.makedirs(path, exist_ok=True)
+        print(f"{Fore.GREEN}✔ Created directory: {path}{Style.RESET_ALL}")
+    except Exception as e:
+        print(f"{Fore.RED}✘ Error creating directory {{path}}: {e}{Style.RESET_ALL}")
+
+        sys.exit(1)
+
+
+def save_plot(fig, plot_type):
+    """Save the plot with a timestamp in the filename and optionally display it."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"electric_field_{plot_type}_{timestamp}.png"
+    filepath = os.path.join(PLOT_CONFIG["output_folder"], filename)
+    fig.savefig(filepath, bbox_inches="tight")
+    print(f"{Fore.GREEN}✔ Plot saved: {filepath}{Style.RESET_ALL}")
+
+    if PLOT_CONFIG["show_plots"]:
+        plt.show()
+    else:
+        plt.close(fig)
+
+
+# Create output folders
+create_directory(PLOT_CONFIG["output_folder"])
+
+# Set up high-quality plot parameters
+plt.rcParams["figure.dpi"] = PLOT_CONFIG["show-dpi"]
+plt.rcParams["savefig.dpi"] = PLOT_CONFIG["save-dpi"]
+plt.rcParams["font.size"] = PLOT_CONFIG["font_size"]
+plt.rcParams["legend.fontsize"] = PLOT_CONFIG["legend_font_size"]
+plt.rcParams["xtick.labelsize"] = PLOT_CONFIG["tick_label_size"]
+plt.rcParams["ytick.labelsize"] = PLOT_CONFIG["tick_label_size"]
+
+
 # Define electric potential and field functions
 def Phi(R, Z):
-    term1 = PHYSICS_PARAMS["kappa"] * PHYSICS_PARAMS["Phi0"] * (
-        1 - delta_star**2 * (1 - Z**2 / (R**2 + Z**2))
-    ) * np.log(1 / (R**2 + Z**2))
+    term1 = (
+        PHYSICS_PARAMS["kappa"]
+        * PHYSICS_PARAMS["Phi0"]
+        * (1 - delta_star**2 * (1 - Z**2 / (R**2 + Z**2)))
+        * np.log(1 / (R**2 + Z**2))
+    )
     term2 = 0.5 * PHYSICS_PARAMS["Phi0"] * (1 - Z**2 / (R**2 + Z**2))
     return term1 + term2
+
 
 def E_R(R, Z):
     Phi0 = PHYSICS_PARAMS["Phi0"]
     kappa = PHYSICS_PARAMS["kappa"]
     delta_star2 = delta_star**2
-    numerator = R * Phi0 * (
-        -2 * kappa * R**2 
-        + 2 * delta_star2 * kappa * (R**2 - Z**2 * np.log(1 / (R**2 + Z**2)))
-        + (1 - 2 * kappa) * Z**2
+    numerator = (
+        R
+        * Phi0
+        * (
+            -2 * kappa * R**2
+            + 2 * delta_star2 * kappa * (R**2 - Z**2 * np.log(1 / (R**2 + Z**2)))
+            + (1 - 2 * kappa) * Z**2
+        )
     )
-    denominator = (R**2 + Z**2)**2
+    denominator = (R**2 + Z**2) ** 2
     return -numerator / denominator
+
 
 def E_z(R, Z):
     Phi0 = PHYSICS_PARAMS["Phi0"]
     kappa = PHYSICS_PARAMS["kappa"]
     delta_star2 = delta_star**2
-    numerator = -Z * Phi0 * (
-        (2 * kappa + 1) * R**2 
-        - 2 * delta_star2 * kappa * R**2 * (np.log(1 / (R**2 + Z**2)) + 1)
-        + 2 * kappa * Z**2
+    numerator = (
+        -Z
+        * Phi0
+        * (
+            (2 * kappa + 1) * R**2
+            - 2 * delta_star2 * kappa * R**2 * (np.log(1 / (R**2 + Z**2)) + 1)
+            + 2 * kappa * Z**2
+        )
     )
-    denominator = (R**2 + Z**2)**2
+    denominator = (R**2 + Z**2) ** 2
     return -numerator / denominator
+
 
 # Matplotlib 2D Stream and Contour Plot
 def matplotlib_2d_stream_contour():
@@ -76,12 +150,18 @@ def matplotlib_2d_stream_contour():
     E_magnitude = np.sqrt(E_R_values**2 + E_z_values**2)
 
     # Use Z for x-axis and R for y-axis in streamplot and contour
-    streamplot = ax.streamplot(Z, R, E_z_values, E_R_values, color=E_magnitude, cmap="viridis", linewidth=1.5)
+    streamplot = ax.streamplot(
+        Z, R, E_z_values, E_R_values, color=E_magnitude, cmap="viridis", linewidth=1.5
+    )
     potential = Phi(R, Z)
     contour = ax.contour(Z, R, potential, levels=20, colors="red", linewidths=0.5)
-    
-    equipotential_line = plt.Line2D([0], [0], color="red", lw=0.5, label="Equipotential Lines")
-    electric_field_line = plt.Line2D([0], [0], color="purple", lw=1.5, label="Electric Field Lines")
+
+    equipotential_line = plt.Line2D(
+        [0], [0], color="red", lw=0.5, label="Equipotential Lines"
+    )
+    electric_field_line = plt.Line2D(
+        [0], [0], color="purple", lw=1.5, label="Electric Field Lines"
+    )
     ax.legend(handles=[equipotential_line, electric_field_line], loc="upper right")
 
     plt.colorbar(streamplot.lines, label="Electric field magnitude (V/m)", pad=0.1)
@@ -89,7 +169,7 @@ def matplotlib_2d_stream_contour():
     ax.set_xlabel("Z (m)")  # Change label to Z
     ax.set_ylabel("R (m)")  # Change label to R
     plt.tight_layout()
-    plt.show()
+    save_plot(fig, "2D_Stream_Contour_Matplotlib")
 
 
 # Matplotlib 2D Quiver Plot
@@ -101,7 +181,9 @@ def matplotlib_2d_quiver():
     R_dense = np.linspace(0.2, 4, 100)
     Z_dense, R_dense = np.meshgrid(Z_dense, R_dense)
     potential = Phi(R_dense, Z_dense)
-    contourf = ax.contourf(Z_dense, R_dense, potential, levels=50, cmap="coolwarm", alpha=0.6)
+    contourf = ax.contourf(
+        Z_dense, R_dense, potential, levels=50, cmap="coolwarm", alpha=0.6
+    )
     plt.colorbar(contourf, ax=ax, label="Electric Potential (V)")
 
     # Sparse grid for quiver arrows (rotated)
@@ -112,11 +194,29 @@ def matplotlib_2d_quiver():
     E_z_values = E_z(R_sparse, Z_sparse)
 
     # Quiver plot for electric field
-    quiver = ax.quiver(Z_sparse, R_sparse, E_z_values, E_R_values, color="black", angles="xy", scale_units="xy", scale=3, alpha=0.5)
+    quiver = ax.quiver(
+        Z_sparse,
+        R_sparse,
+        E_z_values,
+        E_R_values,
+        color="black",
+        angles="xy",
+        scale_units="xy",
+        scale=3,
+        alpha=0.5,
+    )
 
     # Create a custom legend entry for Electric Potential Contours using a dummy Line2D object
     from matplotlib.lines import Line2D
-    contour_legend = Line2D([0], [0], color="black", linestyle="-", linewidth=0.8, label="Electric Equipotential Lines")
+
+    contour_legend = Line2D(
+        [0],
+        [0],
+        color="black",
+        linestyle="-",
+        linewidth=0.8,
+        label="Electric Equipotential Lines",
+    )
 
     # Set plot title and labels
     ax.set_title("Electric Field (2D Quiver Plot) with Electric Potential Color Map")
@@ -127,8 +227,9 @@ def matplotlib_2d_quiver():
     ax.legend(handles=[contour_legend], loc="upper left")
 
     plt.tight_layout()
-    plt.show()
-        
+    save_plot(fig, "2D_Quiver_Matplotlib")
+
+
 def matplotlib_2d_potential_contour():
     fig, ax = plt.subplots(figsize=(10, 8))
 
@@ -160,7 +261,7 @@ def matplotlib_2d_potential_contour():
 
     # Adjust layout for a clean look
     plt.tight_layout()
-    plt.show()
+    save_plot(fig, "2D_Potential_Contour_Matplotlib")
 
 
 def matplotlib_2d_electric_field_contour():
@@ -196,92 +297,99 @@ def matplotlib_2d_electric_field_contour():
 
     # Adjust layout for a clean look
     plt.tight_layout()
-    plt.show()
+    save_plot(fig, "2D_Electric_Field_Contour_Matplotlib")
 
-    
-    
+
 # Matplotlib 3D Surface Plot
 def matplotlib_3d_surface():
-    if MATPLOTLIB_3D_SURFACE:
-        fig = plt.figure(figsize=(10, 8))
-        ax = fig.add_subplot(111, projection="3d")
-        R = np.linspace(0.1, 5, 100)
-        Z = np.linspace(0.1, 5, 100)
-        R, Z = np.meshgrid(R, Z)
-        E_magnitude = np.sqrt(E_R(R, Z)**2 + E_z(R, Z)**2)
-        potential = Phi(R, Z)
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection="3d")
+    R = np.linspace(0.1, 5, 100)
+    Z = np.linspace(0.1, 5, 100)
+    R, Z = np.meshgrid(R, Z)
+    E_magnitude = np.sqrt(E_R(R, Z) ** 2 + E_z(R, Z) ** 2)
+    potential = Phi(R, Z)
 
-        surf = ax.plot_surface(R, Z, E_magnitude, cmap="viridis", edgecolor="none", alpha=0.7)
-        fig.colorbar(surf, ax=ax, label="Electric field magnitude (V/m)", pad=0.1)
-        ax.contour(R, Z, potential, levels=15, offset=E_magnitude.min(), cmap="cool", linestyles="dashed")
+    surf = ax.plot_surface(
+        R, Z, E_magnitude, cmap="viridis", edgecolor="none", alpha=0.7
+    )
+    fig.colorbar(surf, ax=ax, label="Electric field magnitude (V/m)", pad=0.1)
+    ax.contour(
+        R,
+        Z,
+        potential,
+        levels=15,
+        offset=E_magnitude.min(),
+        cmap="cool",
+        linestyles="dashed",
+    )
 
-        ax.set_xlabel("R (m)")
-        ax.set_ylabel("Z (m)")
-        ax.set_zlabel("Electric Field Magnitude (V/m)")
-        ax.set_title("Electric Field Magnitude (3D Surface Plot) with Equipotential Contours")
-        plt.tight_layout()
-        plt.show()
+    ax.set_xlabel("R (m)")
+    ax.set_ylabel("Z (m)")
+    ax.set_zlabel("Electric Field Magnitude (V/m)")
+    ax.set_title(
+        "Electric Field Magnitude (3D Surface Plot) with Equipotential Contours"
+    )
+    plt.tight_layout()
+    save_plot(fig, "3D_Surface_Matplotlib")
+
 
 # Plotly Interactive 3D Surface Plot
 def plotly_3d_surface():
-    if PLOTLY_3D_SURFACE:
-        R = np.linspace(0.1, 5, 100)
-        Z = np.linspace(0.1, 5, 100)
-        R, Z = np.meshgrid(R, Z)
-        E_magnitude = np.sqrt(E_R(R, Z)**2 + E_z(R, Z)**2)
+    R = np.linspace(0.1, 5, 100)
+    Z = np.linspace(0.1, 5, 100)
+    R, Z = np.meshgrid(R, Z)
+    E_magnitude = np.sqrt(E_R(R, Z) ** 2 + E_z(R, Z) ** 2)
 
-        fig = go.Figure(data=[go.Surface(z=E_magnitude, x=R, y=Z, colorscale='Viridis')])
-        fig.update_layout(
-            title="Electric Field Magnitude",
-            scene=dict(
-                xaxis_title="R (m)",
-                yaxis_title="Z (m)",
-                zaxis_title="Field Magnitude (V/m)"
-            ),
-        )
+    fig = go.Figure(data=[go.Surface(z=E_magnitude, x=R, y=Z, colorscale="Viridis")])
+    fig.update_layout(
+        title="Electric Field Magnitude",
+        scene=dict(
+            xaxis_title="R (m)",
+            yaxis_title="Z (m)",
+            zaxis_title="Field Magnitude (V/m)",
+        ),
+    )
+    if isinstance(fig, go.Figure):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"electric_field_3D Surface_Plotly_{timestamp}.png"
+        filepath = os.path.join(PLOT_CONFIG["output_folder"], filename)
         fig.show()
+        fig.write_image(filepath)
+        print(f"{Fore.GREEN}✔ Plot saved: {filepath}{Style.RESET_ALL}")
+    else:
+        raise ValueError("Invalid plotly plot object provided.")
 
-# Mayavi 3D Vector Field
-def mayavi_vector_field():
-    if MAYAVI_VECTOR_FIELD:
-        R = np.linspace(-5, 5, 10)
-        Z = np.linspace(-5, 5, 10)
-        R, Z = np.meshgrid(R, Z)
-        E_R_values = E_R(R, Z)
-        E_z_values = E_z(R, Z)
-
-        mlab.figure(size=(800, 600))
-        mlab.quiver3d(R, Z, np.zeros_like(R), E_R_values, E_z_values, np.zeros_like(R), color=(0, 0, 1))
-        mlab.title("Electric Field Vector Field")
-        mlab.xlabel("R")
-        mlab.ylabel("Z")
-        mlab.show()
 
 # PyVista Streamlines
 def pyvista_streamlines():
-    if PYVISTA_STREAMLINES:
-        R = np.linspace(-5, 5, 50)
-        Z = np.linspace(-5, 5, 50)
-        R, Z = np.meshgrid(R, Z)
-        E_R_values = E_R(R, Z)
-        E_z_values = E_z(R, Z)
-        potential = Phi(R, Z)
+    R = np.linspace(-5, 5, 50)
+    Z = np.linspace(-5, 5, 50)
+    R, Z = np.meshgrid(R, Z)
+    E_R_values = E_R(R, Z)
+    E_z_values = E_z(R, Z)
+    potential = Phi(R, Z)
 
-        grid = pv.StructuredGrid(R, Z, np.zeros_like(R))
-        grid['E_field'] = np.c_[E_R_values.ravel(), E_z_values.ravel(), np.zeros_like(E_R_values).ravel()]
-        grid['potential'] = potential.ravel()
+    grid = pv.StructuredGrid(R, Z, np.zeros_like(R))
+    grid["E_field"] = np.c_[
+        E_R_values.ravel(), E_z_values.ravel(), np.zeros_like(E_R_values).ravel()
+    ]
+    grid["potential"] = potential.ravel()
 
-        # Create a source point for the streamlines
-        source = pv.PolyData([0, 0, 0])
+    # Create a source point for the streamlines
+    source = pv.PolyData([0, 0, 0])
 
-        plotter = pv.Plotter()
-        plotter.add_mesh(grid.contour(10, scalars='potential'), cmap='coolwarm', line_width=2)
-        streamlines = grid.streamlines_from_source(
-            source, vectors='E_field', max_time=100, integration_direction='both'
-        )
-        plotter.add_mesh(streamlines.tube(radius=0.01), color='blue')
-        plotter.add_mesh(grid.outline(), color="k")
-        plotter.show()
+    plotter = pv.Plotter()
+    plotter.add_mesh(
+        grid.contour(10, scalars="potential"), cmap="coolwarm", line_width=2
+    )
+    streamlines = grid.streamlines_from_source(
+        source, vectors="E_field", max_time=100, integration_direction="both"
+    )
+    plotter.add_mesh(streamlines.tube(radius=0.01), color="blue")
+    plotter.add_mesh(grid.outline(), color="k")
+    plotter.show()
+
 
 # Holoviews + Datashader High-Resolution Quiver Plot
 def holoviews_vectorfield_plot():
@@ -295,25 +403,31 @@ def holoviews_vectorfield_plot():
 
     # Prepare vector data for the plot
     vector_data = (R.ravel(), Z.ravel(), E_R_values.ravel(), E_z_values.ravel())
-    
+
     # Create a VectorField plot with adjusted scaling and no colorbar
     vector_field = hv.VectorField(vector_data).opts(
-        magnitude='Magnitude', color='Magnitude', cmap='Viridis',
-        width=600, height=600, scale=0.5, colorbar=False
+        magnitude="Magnitude",
+        color="Magnitude",
+        cmap="Viridis",
+        width=600,
+        height=600,
+        scale=0.5,
+        colorbar=False,
     )
-    
+
     # Manually set contour levels
     contour_levels = np.linspace(potential_values.min(), potential_values.max(), 20)
-    
+
     # Create a contour plot for the potential with enhanced lines and no labels
-    contour = hv.operation.contours(hv.Image((R[0], Z[:, 0], potential_values)), levels=contour_levels).opts(
-        cmap='Blues', line_width=2, alpha=0.8, colorbar=False, show_legend=False
-    )
-    
+    contour = hv.operation.contours(
+        hv.Image((R[0], Z[:, 0], potential_values)), levels=contour_levels
+    ).opts(cmap="Blues", line_width=2, alpha=0.8, colorbar=False, show_legend=False)
+
     # Overlay VectorField and Contour
     plot = vector_field * contour
-    
+
     return plot
+
 
 # Main function to generate plots
 def main():
@@ -329,13 +443,12 @@ def main():
         matplotlib_2d_electric_field_contour()
     if PLOTLY_3D_SURFACE:
         plotly_3d_surface()
-    if MAYAVI_VECTOR_FIELD:
-        mayavi_vector_field()
     if PYVISTA_STREAMLINES:
         pyvista_streamlines()
     if HOLOVIEWS_QUAD_MESH:
         plot = holoviews_vectorfield_plot()
-        hv.save(plot, 'quiver_contour_plot.html', backend='bokeh')
+        hv.save(plot, "plots/quiver_contour_plot.html", backend="bokeh")
+
 
 if __name__ == "__main__":
     main()

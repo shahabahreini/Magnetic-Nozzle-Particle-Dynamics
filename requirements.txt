@@ -8,7 +8,7 @@ numpy
 scipy
 seaborn
 colorama
-pyyaml
+PyYAML
 pyvista
 holoviews
 datashader
@@ -19,3 +19,4 @@ kaleido
 blessed
 rich
 psutil
+textual

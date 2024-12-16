@@ -8,6 +8,10 @@ import numpy as np
 import pkg_resources
 import subprocess
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import pyvista as pv
+import holoviews as hv
+from holoviews import opts
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import (
@@ -23,6 +27,8 @@ from rich.prompt import Prompt, IntPrompt, Confirm
 from rich import box
 from rich.box import ROUNDED, SQUARE
 from pathlib import Path
+import yaml
+import re
 
 import matplotlib.pyplot as plt
 from modules import (
@@ -41,7 +47,11 @@ from peakfinder import (
     Configuration,
 )
 from plotter_2D import plot_csv_files, select_plotting_parameters
-from plotter_3D import Plotter_2d3d, display_available_parameters, get_parameter_from_input
+from plotter_3D import (
+    Plotter_2d3d,
+    display_available_parameters,
+    get_parameter_from_input,
+)
 from plotter_comparison_1D_exact import (
     list_csv_files_noFolder,
     select_file_by_number,
@@ -52,7 +62,23 @@ from plotter_comparison_1D_exact import (
 from plotter_comparison_2D_3D import plot_comparison
 from modules.file_utils import list_comparison_files, list_items
 from plotter_energy_momentum_conservasion import CONFIG, plotter_conservation
-
+from plotter_electricField import (
+    matplotlib_3d_surface,
+    matplotlib_2d_stream_contour,
+    matplotlib_2d_quiver,
+    matplotlib_2d_electric_field_contour,
+    matplotlib_2d_potential_contour,
+    plotly_3d_surface,
+    pyvista_streamlines,
+    holoviews_vectorfield_plot,
+)
+from plotter_magneticField import (
+    create_2d_quiver_plot,
+    create_3d_contour_plot,
+    create_2d_contour_plot,
+    create_3d_quiver_plot,
+    create_2d_streamplot,
+)
 
 term = Terminal()
 config = Configuration(os.path.join(os.path.dirname(__file__), "config.yaml"))
@@ -367,7 +393,9 @@ def plotter_2d_menu():
                     folder_path = os.path.join(".", selected_folder)
                 else:
                     folder_path = os.getcwd()
-                    selected_file = list_items(root=".", select_type="file", file_keywords=["2D"])
+                    selected_file = list_items(
+                        root=".", select_type="file", file_keywords=["2D"]
+                    )
                     selected_files = [selected_file]
 
                 param_options = [
@@ -438,7 +466,9 @@ def plotter_3d_menu():
                     folder_path = os.path.join(".", selected_folder)
                 else:
                     folder_path = os.getcwd()
-                    selected_file = list_items(root=".", select_type="file", file_keywords=["3D"])
+                    selected_file = list_items(
+                        root=".", select_type="file", file_keywords=["3D"]
+                    )
                     selected_files = [selected_file]
 
                 # Read the first CSV file to get available parameters
@@ -469,7 +499,7 @@ def plotter_3d_menu():
 
                 with Progress() as progress:
                     task = progress.add_task("[cyan]Generating plot...", total=100)
-                    
+
                     try:
                         Plotter_2d3d(
                             selected_files,
@@ -482,10 +512,10 @@ def plotter_3d_menu():
                             use_time_color,
                             show_projections,
                             progress=progress,
-                            task=task
+                            task=task,
                         )
-                        
-                        console.print('\n')
+
+                        console.print("\n")
                         console.print(
                             Panel(
                                 "[green]✓ Plot generated successfully![/green]",
@@ -493,9 +523,9 @@ def plotter_3d_menu():
                                 border_style="green",
                             )
                         )
-                        
+
                     except Exception as e:
-                        console.print('\n')
+                        console.print("\n")
                         console.print(
                             Panel(
                                 f"[red]Error during plot generation:",
@@ -1000,7 +1030,9 @@ def conservation_plots_menu():
                     selected_folder, _ = list_folders()
                     folder_path = os.path.join(".", selected_folder)
                 else:
-                    chosen_csv = list_items(root=".", select_type="file", file_keywords=["3D"])
+                    chosen_csv = list_items(
+                        root=".", select_type="file", file_keywords=["3D"]
+                    )
                     if not chosen_csv:
                         console.print("[red]No suitable CSV files found.[/red]")
                         input(term.bold_red("\nPress Enter to continue..."))
@@ -1027,13 +1059,9 @@ def conservation_plots_menu():
                         CONFIG["USE_METHOD_LEGEND"] = use_method_legend
 
                         plotter_conservation(
-                            chosen_csv,
-                            export_file_name,
-                            parameters,
-                            plot_type,
-                            task
+                            chosen_csv, export_file_name, parameters, plot_type, task
                         )
-                        console.print('\n')
+                        console.print("\n")
                         console.print(
                             Panel(
                                 f"[green]✓ {options[choice][0]} generated successfully![/green]\n"
@@ -1044,7 +1072,7 @@ def conservation_plots_menu():
                         )
 
                     except Exception as e:
-                        console.print('\n')
+                        console.print("\n")
                         console.print(
                             Panel(
                                 f"[red]Error during plot generation:[/red]\n{str(e)}",
@@ -1064,6 +1092,332 @@ def conservation_plots_menu():
             input(term.bold_red("\nPress Enter to continue..."))
 
 
+def select_electric_field_plot():
+    options = [
+        "2D Stream Contour (Matplotlib)",
+        "2D Quiver (Matplotlib)",
+        "2D Electric Field Contour (Matplotlib)",
+        "2D Potential Contour (Matplotlib)",
+        "3D Surface (Matplotlib)",
+        "3D Surface (Plotly)",
+        "Streamlines (PyVista)",
+        "Quad Mesh (HoloViews)",
+        "Back",
+    ]
+
+    plot_functions = {
+        "2D Stream Contour (Matplotlib)": matplotlib_2d_stream_contour,
+        "2D Quiver (Matplotlib)": matplotlib_2d_quiver,
+        "2D Electric Field Contour (Matplotlib)": matplotlib_2d_electric_field_contour,
+        "2D Potential Contour (Matplotlib)": matplotlib_2d_potential_contour,
+        "3D Surface (Matplotlib)": matplotlib_3d_surface,
+        "3D Surface (Plotly)": plotly_3d_surface,
+        "Streamlines (PyVista)": pyvista_streamlines,
+        "Quad Mesh (HoloViews)": lambda: hv.save(
+            holoviews_vectorfield_plot(), "quiver_contour_plot.html", backend="bokeh"
+        ),
+    }
+
+    idx = 0
+    with term.cbreak(), term.hidden_cursor():
+        while True:
+            console.clear()
+            print_header()
+            console.print(
+                "[bold blue]Select Electric Field Plot Type. Press 'b' to go back:[/bold blue]\n"
+            )
+            for i, option in enumerate(options):
+                prefix = ">" if i == idx else " "
+                console.print(f"{prefix} {option}")
+
+            key = term.inkey(timeout=None)
+            if key.name == "KEY_UP":
+                idx = (idx - 1) % len(options)
+            elif key.name == "KEY_DOWN":
+                idx = (idx + 1) % len(options)
+            elif key.name == "KEY_ENTER":
+                selected_option = options[idx]
+                if selected_option == "Back":
+                    break
+                plot_function = plot_functions.get(selected_option)
+                if plot_function:
+                    console.print(f"\n[green]Running {selected_option}...[/green]")
+                    try:
+                        plot_function()
+                        console.print(f"[green]{selected_option} completed![/green]\n")
+                    except NameError as e:
+                        console.print(f"[red]Error: {str(e)}[/red]\n")
+                    input(term.bold_green("\nPress Enter to continue..."))
+                else:
+                    console.print("[red]Invalid selection. Try again.[/red]")
+            elif key.lower() == "b":
+                break
+
+
+def create_plot(name, func):
+    console.print(f"\n[green]Creating {name}...[/green]")
+    try:
+        func()
+        console.print(f"[green]{name} completed![/green]\n")
+    except NameError as e:
+        console.print(f"[red]Error: {str(e)}[/red]\n")
+    input(term.bold_green("\nPress Enter to continue..."))
+
+
+def select_electric_field_plot():
+    options = [
+        "2D Stream Contour (Matplotlib)",
+        "2D Quiver (Matplotlib)",
+        "2D Electric Field Contour (Matplotlib)",
+        "2D Potential Contour (Matplotlib)",
+        "3D Surface (Matplotlib)",
+        "3D Surface (Plotly)",
+        "Streamlines (PyVista)",
+        "Quad Mesh (HoloViews)",
+        "Back",
+    ]
+
+    plot_functions = {
+        "2D Stream Contour (Matplotlib)": matplotlib_2d_stream_contour,
+        "2D Quiver (Matplotlib)": matplotlib_2d_quiver,
+        "2D Electric Field Contour (Matplotlib)": matplotlib_2d_electric_field_contour,
+        "2D Potential Contour (Matplotlib)": matplotlib_2d_potential_contour,
+        "3D Surface (Matplotlib)": matplotlib_3d_surface,
+        "3D Surface (Plotly)": plotly_3d_surface,
+        "Streamlines (PyVista)": pyvista_streamlines,
+        "Quad Mesh (HoloViews)": lambda: hv.save(
+            holoviews_vectorfield_plot(), "quiver_contour_plot.html", backend="bokeh"
+        ),
+    }
+
+    idx = 0
+    with term.cbreak(), term.hidden_cursor():
+        while True:
+            console.clear()
+            print_header()
+            console.print(
+                "[bold blue]Select Electric Field Plot Type. Press 'b' to go back:[/bold blue]\n"
+            )
+            for i, option in enumerate(options):
+                prefix = "[cyan]>[/cyan]" if i == idx else " "
+                console.print(f"{prefix} {option}")
+
+            key = term.inkey(timeout=None)
+            if key.name == "KEY_UP":
+                idx = (idx - 1) % len(options)
+            elif key.name == "KEY_DOWN":
+                idx = (idx + 1) % len(options)
+            elif key.name == "KEY_ENTER":
+                selected_option = options[idx]
+                if selected_option == "Back":
+                    break
+                plot_function = plot_functions.get(selected_option)
+                if plot_function:
+                    create_plot(selected_option, plot_function)
+                else:
+                    console.print("[red]Invalid selection. Try again.[/red]")
+            elif key.lower() == "b":
+                break
+
+
+def select_magnetic_field_plot():
+    options = [
+        "2D Streamplot",
+        "3D Quiver Plot",
+        "2D Contour Plot",
+        "3D Contour Plot",
+        "2D Quiver Plot",
+        "Back",
+    ]
+
+    plot_functions = {
+        "2D Streamplot": create_2d_streamplot,
+        "3D Quiver Plot": create_3d_quiver_plot,
+        "2D Contour Plot": create_2d_contour_plot,
+        "3D Contour Plot": create_3d_contour_plot,
+        "2D Quiver Plot": create_2d_quiver_plot,
+    }
+
+    idx = 0
+    with term.cbreak(), term.hidden_cursor():
+        while True:
+            console.clear()
+            print_header()
+            console.print("[bold blue]Select Magnetic Field Plot Type:[/bold blue]")
+            for i, option in enumerate(options):
+                prefix = "[cyan]>[/cyan]" if i == idx else " "
+                console.print(f"{prefix} {option}")
+
+            key = term.inkey(timeout=None)
+            if key.name == "KEY_UP":
+                idx = (idx - 1) % len(options)
+            elif key.name == "KEY_DOWN":
+                idx = (idx + 1) % len(options)
+            elif key.name == "KEY_ENTER":
+                selected_option = options[idx]
+                if selected_option == "Back":
+                    break
+                plot_function = plot_functions.get(selected_option)
+                if plot_function:
+                    create_plot(selected_option, plot_function)
+                else:
+                    console.print("[red]Invalid selection. Try again.[/red]")
+            elif key.lower() == "b":
+                break
+
+
+def field_plotter_menu():
+    options = ["Electric Field", "Magnetic Field", "Back"]
+    idx = 0
+    with term.cbreak(), term.hidden_cursor():
+        while True:
+            console.clear()
+            print_header()
+            console.print(
+                "[bold blue]Select Field Plotter Type. Press 'b' to go back:[/bold blue]\n"
+            )
+            for i, option in enumerate(options):
+                prefix = "[cyan]>[/cyan]" if i == idx else " "
+                console.print(f"{prefix} {option}")
+            key = term.inkey(timeout=None)
+            if key.name == "KEY_UP":
+                idx = (idx - 1) % len(options)
+            elif key.name == "KEY_DOWN":
+                idx = (idx + 1) % len(options)
+            elif key.name == "KEY_ENTER":
+                if idx == 0:
+                    select_electric_field_plot()
+                elif idx == 1:
+                    select_magnetic_field_plot()
+                elif idx == 2:
+                    break
+            elif key.lower() == "b":
+                break
+
+
+def update_config_yaml(file_path, new_params):
+    with open(file_path, "r") as f:
+        config = yaml.safe_load(f)
+
+    config.update(new_params)
+
+    with open(file_path, "w") as f:
+        yaml.dump(config, f, default_flow_style=False)
+
+
+def update_initial_conditions(file_path, new_params):
+    with open(file_path, "r") as f:
+        lines = f.readlines()
+
+    updated_lines = []
+    for line in lines:
+        match = re.match(r"([^=]+)\s*=\s*(.+)", line)
+        if match:
+            key, value = match.groups()
+            key = key.strip()
+            if key in new_params:
+                updated_lines.append(f"{key} = {new_params[key]}\n")
+            else:
+                updated_lines.append(line)
+        else:
+            updated_lines.append(line)
+
+    with open(file_path, "w") as f:
+        f.writelines(updated_lines)
+
+
+def select_setting(settings):
+    idx = 0
+    with term.cbreak(), term.hidden_cursor():
+        while True:
+            console.clear()
+            print_header()
+            console.print(
+                "[bold blue]Use arrow keys to navigate and Enter to edit. Press 'b' to go back:[/bold blue]\n"
+            )
+            for i, (key, value) in enumerate(settings.items()):
+                prefix = ">" if i == idx else " "
+                console.print(f"{prefix} {key}: [cyan]{value}[/cyan]")
+
+            key = term.inkey(timeout=None)
+            if key.name == "KEY_UP":
+                idx = (idx - 1) % len(settings)
+            elif key.name == "KEY_DOWN":
+                idx = (idx + 1) % len(settings)
+            elif key.name == "KEY_ENTER":
+                selected_key = list(settings.keys())[idx]
+                current_value = settings[selected_key]
+                console.print(
+                    f"\nEditing [bold]{selected_key}[/bold] (Current: [cyan]{current_value}[/cyan])"
+                )
+                if isinstance(current_value, bool):
+                    new_value = not current_value
+                    settings[selected_key] = new_value
+                    console.print(
+                        f"[green]Updated {selected_key} to {new_value}[/green]\n"
+                    )
+                else:
+                    console.print("Enter new value: ", end="", style="yellow")
+                    new_value = input().strip()
+                    if new_value.lower() in ["true", "false"]:
+                        new_value = new_value.lower() == "true"
+                    settings[selected_key] = new_value
+                    console.print(
+                        f"[green]Updated {selected_key} to {new_value}[/green]\n"
+                    )
+            elif key == "b":
+                break
+
+
+def update_settings_menu():
+    options = [
+        "Plotter Config (config.yaml)",
+        "Initial Conditions (initial_conditions.txt)",
+        "Back",
+    ]
+    idx = 0
+
+    with term.cbreak(), term.hidden_cursor():
+        while True:
+            console.clear()
+            print_header()
+            console.print("[bold blue]Select the file to update:[/bold blue]")
+            for i, option in enumerate(options):
+                prefix = ">" if i == idx else " "
+                console.print(f"{prefix} {option}")
+
+            key = term.inkey(timeout=None)
+            if key.name == "KEY_UP":
+                idx = (idx - 1) % len(options)
+            elif key.name == "KEY_DOWN":
+                idx = (idx + 1) % len(options)
+            elif key.name == "KEY_ENTER":
+                if idx == 0:
+                    config_file = "config.yaml"
+                    with open(config_file, "r") as f:
+                        config = yaml.safe_load(f)
+                    select_setting(config)
+                    update_config_yaml(config_file, config)
+                elif idx == 1:
+                    initial_conditions_file = "initial_conditions.txt"
+                    initial_conditions = {}
+                    with open(initial_conditions_file, "r") as f:
+                        for line in f:
+                            match = re.match(r"([^=]+)\s*=\s*(.+)", line)
+                            if match:
+                                key, value = match.groups()
+                                initial_conditions[key.strip()] = value.strip()
+                    select_setting(initial_conditions)
+                    update_initial_conditions(
+                        initial_conditions_file, initial_conditions
+                    )
+                elif idx == 2:
+                    break
+                console.print(
+                    "\n[green]Configuration files updated successfully![/green]\n"
+                )
+
+
 def main_menu():
     options = {
         "1": ("Package Management", check_and_install_requirements),
@@ -1072,6 +1426,8 @@ def main_menu():
         "4": ("3D Plotter", plotter_3d_menu),
         "5": ("Comparison Plots", plotter_comparison_menu),
         "6": ("Conservation Plots", conservation_plots_menu),
+        "7": ("Field Plotter", field_plotter_menu),
+        "8": ("Update Settings", update_settings_menu),
         "q": ("Quit", None),
     }
 
