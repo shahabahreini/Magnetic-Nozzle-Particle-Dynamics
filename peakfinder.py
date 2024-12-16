@@ -22,6 +22,29 @@ from modules import (
     search_for_export_csv,
 )
 
+# Plot parameters
+PLOT_CONFIG = {
+    # Resolution of the saved plots (dots per inch)
+    "save-dpi": 300,
+    "show-dpi": 80,
+    "font_size": 12,  # Base font size for plot text
+    "legend_font_size": 10,  # Font size for legend text
+    "tick_label_size": 10,  # Font size for axis tick labels
+    # Size of the figure in inches (width, height)
+    "figure_size": (12, 10),
+    "colorbar_pad": 0.1,  # Padding between plots and colorbars
+    "show_plots": False,  # Set to True to display plots on screen after saving
+}
+
+# Set up high-quality plot parameters
+plt.rcParams["figure.dpi"] = PLOT_CONFIG["show-dpi"]
+plt.rcParams["savefig.dpi"] = PLOT_CONFIG["save-dpi"]
+plt.rcParams["font.size"] = PLOT_CONFIG["font_size"]
+plt.rcParams["legend.fontsize"] = PLOT_CONFIG["legend_font_size"]
+plt.rcParams["xtick.labelsize"] = PLOT_CONFIG["tick_label_size"]
+plt.rcParams["ytick.labelsize"] = PLOT_CONFIG["tick_label_size"]
+
+
 config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
 config = Configuration(config_path)
 
@@ -242,7 +265,7 @@ def plotter(path_, fname_, show_growth_rate=False):
             "axes.linewidth": 0.5,
             "axes.edgecolor": "#333333",
             # Figure settings
-            "figure.dpi": 150,
+            "figure.dpi": 80,
             "savefig.dpi": 600,
             # Legend settings
             "legend.framealpha": 0.9,
@@ -311,7 +334,7 @@ def plotter(path_, fname_, show_growth_rate=False):
     adiabatic_data.sort(reverse=True, key=lambda x: x[0])
 
     # Create figure with enhanced layout
-    fig = plt.figure(figsize=(12, 10), dpi=150)
+    fig = plt.figure(figsize=(9, 7), dpi=80)
 
     if config.share_x_axis:
         gs = plt.GridSpec(2, 1, height_ratios=[1, 1], hspace=0.1)
@@ -715,9 +738,6 @@ def plot_amplitude_analysis_separate(path_, fname_, show_plot=False):
             "grid.color": "#CCCCCC",
             "axes.linewidth": 1.0,
             "axes.edgecolor": "#333333",
-            "figure.dpi": 150,
-            "savefig.dpi": 600,
-            "figure.figsize": (10, 6),
         }
     )
 
@@ -878,7 +898,7 @@ def plot_eta_fluctuations(df, fname, show_growth_rate=False):
     plt.style.use("default")
 
     # Create figure with wider aspect ratio
-    fig = plt.figure(figsize=(16, 10))
+    fig = plt.figure(figsize=(9, 5))
 
     # Create GridSpec with larger right panel for text boxes
     gs = fig.add_gridspec(1, 2, width_ratios=[2, 1], wspace=0.2)
@@ -1121,12 +1141,12 @@ def plotter_adiabatic_invariance_check(path_, fname_, show_frequency_analysis=Fa
         filelst = [fname_]
 
     if show_frequency_analysis:
-        fig = plt.figure(figsize=(12, 10), dpi=150)
+        fig = plt.figure(figsize=(9, 7), dpi=80)
         gs = plt.GridSpec(2, 1, hspace=0.25)
         ax1 = fig.add_subplot(gs[0])  # J invariance plot
         ax2 = fig.add_subplot(gs[1])  # Frequency plot
     else:
-        fig, ax1 = plt.subplots(figsize=(10, 6), dpi=150)
+        fig, ax1 = plt.subplots(figsize=(10, 6), dpi=80)
 
     colors = plt.cm.viridis(np.linspace(0, 1, len(filelst)))
     file_params = None
@@ -1242,14 +1262,16 @@ def plotter_adiabatic_invariance_check(path_, fname_, show_frequency_analysis=Fa
     ax1.set_xlabel(r"$\tau$", fontsize=12)
     ax1.set_ylabel("Normalized $J (J/J_0)$", fontsize=12)
     ax1.set_title("Adiabatic Invariance Check: $J(t)$", pad=15)
-    ax1.legend(loc="best", framealpha=0.9, edgecolor="#CCCCCC", fancybox=True)
+    ax1.legend(loc="upper right", framealpha=0.9, edgecolor="#CCCCCC", fancybox=True)
     ax1.grid(True, linestyle="--", alpha=0.7)
 
     if show_frequency_analysis:
         ax2.set_xlabel(r"$\tau$", fontsize=12)
         ax2.set_ylabel("Frequency [1/τ]", fontsize=12)
         ax2.set_title("Frequency Analysis of Radial Oscillations", pad=15)
-        ax2.legend(loc="best", framealpha=0.9, edgecolor="#CCCCCC", fancybox=True)
+        ax2.legend(
+            loc="upper right", framealpha=0.9, edgecolor="#CCCCCC", fancybox=True
+        )
         ax2.grid(True, linestyle="--", alpha=0.7)
 
     plt.tight_layout()
