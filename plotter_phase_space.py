@@ -3,16 +3,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 from scipy.optimize import minimize
+from modules import list_folders
 
 # Constants
 eps_phi = 0.001
 kappa = 0.01
 delta_star = 0.01
-
+foldername, fname = list_folders()
 # Read the CSV data
-df = pd.read_csv(
-    "3D_export-eps0.0002-epsphi0.0-kappa0.01-deltas0.01-beta0.0-alpha90.0-theta3.0-time3000.0.csv"
+print(fname)
+df = pd.read_csv(fname)
+
+# Ask user if all plots should be shown in one figure window
+show_subplots = (
+    input("Show all plots in one figure window? (yes/no): ").strip().lower() == "yes"
 )
+
+save_dpi = 300
 
 
 # Function to estimate l0
@@ -60,61 +67,110 @@ def analyze_radial_oscillations():
     return peaks, frequencies
 
 
-# Plot trajectories and phase space
-fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
+# Get screen size for dynamic figure sizing
+screen_dpi = 120  # Default DPI for screen
+screen_width_inches = plt.rcParams["figure.figsize"][0]  # Default width in inches
+screen_height_inches = plt.rcParams["figure.figsize"][1]  # Default height in inches
 
-# Plot R(t) and z(t)
-ax1.plot(df["timestamp"], df["rho"], label="R(t)")
-ax1.plot(df["timestamp"], df["z"], label="z(t)")
-ax1.set_xlabel("Time (τ)")
-ax1.set_ylabel("Position")
-ax1.legend()
-ax1.set_title("Position vs Time")
+# Adjust figure size to fit the screen
+fig_width = screen_width_inches
+fig_height = (
+    screen_height_inches * 1.5
+)  # Increase height to accommodate additional plot
 
-# Plot phase space R-dR
-ax2.plot(df["rho"], df["drho"])
-ax2.set_xlabel("R")
-ax2.set_ylabel("dR/dτ")
-ax2.set_title("Phase Space (R)")
+if show_subplots:
+    # Create figure with dynamic size for subplots
+    fig, ((ax1, ax2), (ax3, ax4), (ax5, _)) = plt.subplots(
+        3, 2, figsize=(fig_width, fig_height), dpi=screen_dpi
+    )
 
-# Plot phase space z-dz
-ax3.plot(df["z"], df["dz"])
-ax3.set_xlabel("z")
-ax3.set_ylabel("dz/dτ")
-ax3.set_title("Phase Space (z)")
+    # Plot R(t) and z(t)
+    ax1.plot(df["timestamp"], df["rho"], label="R(t)")
+    ax1.plot(df["timestamp"], df["z"], label="z(t)")
+    ax1.set_xlabel("Time (τ)")
+    ax1.set_ylabel("Position")
+    ax1.legend()
+    ax1.set_title("Position vs Time")
 
-# Calculate and plot ωᵣ
-peaks, frequencies = analyze_radial_oscillations()
-ax4.plot(df["timestamp"][peaks[:-1]], frequencies, "o-")
-ax4.set_xlabel("Time (τ)")
-ax4.set_ylabel("ωᵣ")
-ax4.set_title("Radial Frequency vs Time")
+    # Plot phase space R-dR
+    ax2.plot(df["rho"], df["drho"])
+    ax2.set_xlabel("R")
+    ax2.set_ylabel("dR/dτ")
+    ax2.set_title("Phase Space (R)")
 
-plt.tight_layout()
-plt.show()
+    # Plot phase space z-dz
+    ax3.plot(df["z"], df["dz"])
+    ax3.set_xlabel("z")
+    ax3.set_ylabel("dz/dτ")
+    ax3.set_title("Phase Space (z)")
 
+    # Calculate and plot ωᵣ
+    peaks, frequencies = analyze_radial_oscillations()
+    ax4.plot(df["timestamp"][peaks[:-1]], frequencies, "o-")
+    ax4.set_xlabel("Time (τ)")
+    ax4.set_ylabel("ωᵣ")
+    ax4.set_title("Radial Frequency vs Time")
 
-# Calculate adiabatic invariant J
-def calculate_J():
-    # Calculate J = ∮ p_R dR ≈ area of phase space orbit
-    E_R = 0.5 * (df["drho"] ** 2) + 0.5 * (df["omega_rho"] ** 2 * df["rho"] ** 2)
-    J = 2 * np.pi * E_R / df["omega_rho"]
-    return J
+    # Plot dr/dt vs dz/dt
+    ax5.plot(df["drho"], df["dz"])
+    ax5.set_xlabel(r"$\frac{dR}{d\tau}$")
+    ax5.set_ylabel(r"$\frac{dz}{d\tau}$")
+    ax5.set_title("Phase Space for R and z")
 
+    plt.tight_layout()
 
-J = calculate_J()
+    # Save the figure as a high-quality image
+    save_dpi = 300  # High DPI for saving
+    plt.savefig("plot_output.png", dpi=save_dpi, bbox_inches="tight")
+    plt.show()
+else:
+    # Plot R(t) and z(t) separately
+    plt.figure(figsize=(fig_width, fig_height))
+    plt.plot(df["timestamp"], df["rho"], label="R(t)")
+    plt.plot(df["timestamp"], df["z"], label="z(t)")
+    plt.xlabel("Time (τ)")
+    plt.ylabel("Position")
+    plt.legend()
+    plt.title("Position vs Time")
+    plt.savefig("position_vs_time.png", dpi=save_dpi, bbox_inches="tight")
+    plt.show()
 
-# Plot J vs time
-plt.figure(figsize=(10, 6))
-plt.plot(df["timestamp"], J)
-plt.xlabel("Time (τ)")
-plt.ylabel("J (Adiabatic Invariant)")
-plt.title("Adiabatic Invariant vs Time")
-plt.show()
+    # Plot phase space R-dR separately
+    plt.figure(figsize=(fig_width, fig_height))
+    plt.plot(df["rho"], df["drho"])
+    plt.xlabel("R")
+    plt.ylabel("dR/dτ")
+    plt.title("Phase Space (R)")
+    plt.savefig("phase_space_R.png", dpi=save_dpi, bbox_inches="tight")
+    plt.show()
 
-# Print statistical analysis
-print(f"Average ωᵣ = {np.mean(frequencies):.6f} ± {np.std(frequencies):.6f}")
-print(f"Average J = {np.mean(J):.6f} ± {np.std(J):.6f}")
+    # Plot phase space z-dz separately
+    plt.figure(figsize=(fig_width, fig_height))
+    plt.plot(df["z"], df["dz"])
+    plt.xlabel("z")
+    plt.ylabel("dz/dτ")
+    plt.title("Phase Space (z)")
+    plt.savefig("phase_space_z.png", dpi=save_dpi, bbox_inches="tight")
+    plt.show()
+
+    # Calculate and plot ωᵣ separately
+    peaks, frequencies = analyze_radial_oscillations()
+    plt.figure(figsize=(fig_width, fig_height))
+    plt.plot(df["timestamp"][peaks[:-1]], frequencies, "o-")
+    plt.xlabel("Time (τ)")
+    plt.ylabel("ωᵣ")
+    plt.title("Radial Frequency vs Time")
+    plt.savefig("radial_frequency.png", dpi=save_dpi, bbox_inches="tight")
+    plt.show()
+
+    # Plot dr/dt vs dz/dt separately
+    plt.figure(figsize=(fig_width, fig_height))
+    plt.plot(df["drho"], df["dz"])
+    plt.xlabel(r"$\frac{dR}{d\tau}$")
+    plt.ylabel(r"$\frac{dz}{d\tau}$")
+    plt.title("Phase Space for R and z")
+    plt.savefig("phase_space_R_z.png", dpi=save_dpi, bbox_inches="tight")
+    plt.show()
 
 # Additional analysis of l0
 # Plot the acceleration difference vs l0 to verify the estimate
@@ -136,4 +192,5 @@ plt.ylabel("|Acceleration Difference|")
 plt.title("l0 Estimation Verification")
 plt.legend()
 plt.grid(True)
+plt.savefig("l0_estimation_verification.png", dpi=save_dpi, bbox_inches="tight")
 plt.show()

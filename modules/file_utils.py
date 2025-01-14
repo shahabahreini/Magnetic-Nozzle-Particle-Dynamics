@@ -301,6 +301,31 @@ def list_folders(root=".", per_page=40):
     """
     Enhanced folder and file listing function with pagination and detailed information.
     Lists folders first, then CSV files in the current directory.
+
+    This function scans the specified directory and displays a paginated list of folders and CSV files.
+    It provides detailed information for each item, including name, size, number of files (for folders),
+    number of subfolders (for folders), and last modified date. The output is formatted using the `rich`
+    library for a visually appealing display.
+
+    Parameters:
+    - root (str): The root directory to scan. Defaults to the current directory ('.').
+    - per_page (int): The number of items to display per page. Defaults to 40.
+
+    Returns:
+    - tuple: A tuple containing two elements:
+        - folder_path (str): The path of the selected folder, or None if a file is selected.
+        - file_path (str): The path of the selected CSV file, or None if a folder is selected.
+      If the user quits or an error occurs, both elements in the tuple will be None.
+
+    Navigation:
+    - 'n': Move to the next page.
+    - 'p': Move to the previous page.
+    - 'q': Quit the function.
+    - Enter a number: Select the corresponding item for more details.
+
+    Example:
+    >>> folder_path, file_path = list_folders(root="/path/to/directory", per_page=20)
+    >>> print(f"Selected Folder: {folder_path}, Selected File: {file_path}")
     """
     import os
     from datetime import datetime
@@ -318,20 +343,20 @@ def list_folders(root=".", per_page=40):
         """Get detailed information about a folder or file"""
         stats = os.stat(path)
         is_dir = os.path.isdir(path)
-        
+
         info = {
             "name": os.path.basename(path),
             "modified": datetime.fromtimestamp(stats.st_mtime),
             "path": str(path),
-            "is_dir": is_dir
+            "is_dir": is_dir,
         }
-        
+
         if is_dir:
             try:
                 items = list(os.scandir(path))
                 info["num_files"] = len([x for x in items if x.is_file()])
                 info["num_folders"] = len([x for x in items if x.is_dir()])
-                
+
                 total_size = 0
                 for item in Path(path).rglob("*"):
                     if item.is_file():
@@ -343,7 +368,7 @@ def list_folders(root=".", per_page=40):
                 info["size"] = -1
         else:
             info["size"] = stats.st_size
-            
+
         return info
 
     def format_size(size):
@@ -362,7 +387,11 @@ def list_folders(root=".", per_page=40):
 
         console.print(
             Panel(
-                Text(f"Contents of '{os.path.abspath(root)}'", style="bold white", justify="center"),
+                Text(
+                    f"Contents of '{os.path.abspath(root)}'",
+                    style="bold white",
+                    justify="center",
+                ),
                 style="blue",
             )
         )
@@ -389,13 +418,15 @@ def list_folders(root=".", per_page=40):
         for idx, item in enumerate(items[start_idx:end_idx], start=start_idx + 1):
             if item["is_dir"]:
                 files_str = "N/A" if item["num_files"] < 0 else str(item["num_files"])
-                folders_str = "N/A" if item["num_folders"] < 0 else str(item["num_folders"])
+                folders_str = (
+                    "N/A" if item["num_folders"] < 0 else str(item["num_folders"])
+                )
                 item_type = "[blue]DIR[/blue]"
             else:
                 files_str = "-"
                 folders_str = "-"
                 item_type = "[green]CSV[/green]"
-            
+
             table.add_row(
                 str(idx),
                 item_type,
@@ -411,15 +442,15 @@ def list_folders(root=".", per_page=40):
     try:
         # Get both folders and CSV files
         items = []
-        
+
         # First get folders
         for item in os.scandir(root):
             if item.is_dir():
                 items.append(get_item_info(item.path))
-                
+
         # Then get CSV files
         for item in os.scandir(root):
-            if item.is_file() and item.name.lower().endswith('.csv'):
+            if item.is_file() and item.name.lower().endswith(".csv"):
                 items.append(get_item_info(item.path))
 
         if not items:
@@ -434,7 +465,7 @@ def list_folders(root=".", per_page=40):
 
         # Sort items: folders first (alphabetically), then files (alphabetically)
         items.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
-        
+
         current_page = 0
         total_pages = math.ceil(len(items) / per_page)
 
@@ -467,7 +498,7 @@ def list_folders(root=".", per_page=40):
                 idx = int(choice) - 1
                 if 0 <= idx < len(items):
                     selected_item = items[idx]
-                    
+
                     if selected_item["is_dir"]:
                         console.print(
                             Panel(
@@ -956,17 +987,19 @@ def list_comparison_files(folder_path, comparison_type, file_role):
                 input("Press Enter to continue...")
 
 
-def list_items(root=".", select_type="file", file_extension=".csv", file_keywords=None, per_page=40):
+def list_items(
+    root=".", select_type="file", file_extension=".csv", file_keywords=None, per_page=40
+):
     """
     Enhanced folder and file listing function with pagination and detailed information.
-    
+
     Args:
         root (str): Root directory to list items from
         select_type (str): Type of selection - "file" or "folder"
         file_extension (str): File extension to filter (e.g., ".csv")
         file_keywords (list): List of keywords to filter files (e.g., ["1D", "2D", "3D"])
         per_page (int): Number of items to display per page
-    
+
     Returns:
         str: Selected path (file or folder path depending on select_type)
     """
@@ -992,26 +1025,30 @@ def list_items(root=".", select_type="file", file_extension=".csv", file_keyword
         """Get detailed information about a folder or file"""
         stats = os.stat(path)
         is_dir = os.path.isdir(path)
-        
+
         info = {
             "name": os.path.basename(path),
             "modified": datetime.fromtimestamp(stats.st_mtime),
             "path": str(path),
-            "is_dir": is_dir
+            "is_dir": is_dir,
         }
-        
+
         if is_dir:
             try:
                 items = list(os.scandir(path))
                 info["num_files"] = len([x for x in items if x.is_file()])
                 info["num_folders"] = len([x for x in items if x.is_dir()])
-                
+
                 # Count only files that match both extension and keywords
-                target_files = [x for x in items if x.is_file() and 
-                              x.name.lower().endswith(file_extension) and 
-                              matches_keywords(x.name)]
+                target_files = [
+                    x
+                    for x in items
+                    if x.is_file()
+                    and x.name.lower().endswith(file_extension)
+                    and matches_keywords(x.name)
+                ]
                 info["num_target_files"] = len(target_files)
-                
+
                 total_size = 0
                 for item in Path(path).rglob("*"):
                     if item.is_file():
@@ -1024,7 +1061,7 @@ def list_items(root=".", select_type="file", file_extension=".csv", file_keyword
                 info["size"] = -1
         else:
             info["size"] = stats.st_size
-            
+
         return info
 
     def format_size(size):
@@ -1078,39 +1115,43 @@ def list_items(root=".", select_type="file", file_extension=".csv", file_keyword
         for idx, item in enumerate(items[start_idx:end_idx], start=start_idx + 1):
             if item["is_dir"]:
                 files_str = "N/A" if item["num_files"] < 0 else str(item["num_files"])
-                folders_str = "N/A" if item["num_folders"] < 0 else str(item["num_folders"])
-                target_files_str = "N/A" if item["num_target_files"] < 0 else str(item["num_target_files"])
+                folders_str = (
+                    "N/A" if item["num_folders"] < 0 else str(item["num_folders"])
+                )
+                target_files_str = (
+                    "N/A"
+                    if item["num_target_files"] < 0
+                    else str(item["num_target_files"])
+                )
                 item_type = "[blue]DIR[/blue]"
-                
+
                 row_data = [
                     str(idx),
                     item_type,
                     item["name"],
-                    format_size(item["size"])
+                    format_size(item["size"]),
                 ]
                 if show_files:
                     row_data.append(target_files_str)
-                row_data.extend([
-                    files_str,
-                    folders_str,
-                    item["modified"].strftime("%Y-%m-%d %H:%M")
-                ])
+                row_data.extend(
+                    [
+                        files_str,
+                        folders_str,
+                        item["modified"].strftime("%Y-%m-%d %H:%M"),
+                    ]
+                )
             else:
                 item_type = f"[green]{file_extension.upper()[1:]}[/green]"
                 row_data = [
                     str(idx),
                     item_type,
                     item["name"],
-                    format_size(item["size"])
+                    format_size(item["size"]),
                 ]
                 if show_files:
                     row_data.append("-")
-                row_data.extend([
-                    "-",
-                    "-",
-                    item["modified"].strftime("%Y-%m-%d %H:%M")
-                ])
-            
+                row_data.extend(["-", "-", item["modified"].strftime("%Y-%m-%d %H:%M")])
+
             table.add_row(*row_data)
 
         console.print(table)
@@ -1123,45 +1164,53 @@ def list_items(root=".", select_type="file", file_extension=".csv", file_keyword
         has_folders = False
         has_matching_files = False
         total_matching_files = 0
-        
+
         try:
             for item in os.scandir(path):
                 if item.is_dir():
                     has_folders = True
                     if recursive:
-                        _, _, subfolder_files = check_folder_contents(item.path, recursive=True)
+                        _, _, subfolder_files = check_folder_contents(
+                            item.path, recursive=True
+                        )
                         total_matching_files += subfolder_files
                 elif item.is_file():
-                    if item.name.lower().endswith(file_extension) and matches_keywords(item.name):
+                    if item.name.lower().endswith(file_extension) and matches_keywords(
+                        item.name
+                    ):
                         has_matching_files = True
                         total_matching_files += 1
-                        
+
                 if not recursive and (has_folders or has_matching_files):
                     break
-                    
+
         except PermissionError:
             return False, False, 0
-            
+
         return has_folders, has_matching_files, total_matching_files
 
     def display_folder_preview(path):
         """Display a preview of folder contents"""
-        has_folders, has_files, total_files = check_folder_contents(path, recursive=True)
-        
+        has_folders, has_files, total_files = check_folder_contents(
+            path, recursive=True
+        )
+
         preview = Table.grid(padding=1)
         preview.add_column(style="cyan")
         preview.add_column(style="green")
-        
+
         if has_folders:
             preview.add_row("📁 Contains subfolders:", "Yes")
         else:
             preview.add_row("📁 Contains subfolders:", "[yellow]No[/yellow]")
-            
+
         if has_files:
             preview.add_row(f"📄 Matching {file_extension} files:", f"{total_files}")
         else:
-            preview.add_row(f"📄 Matching {file_extension} files:", "[yellow]None[/yellow]")
-            
+            preview.add_row(
+                f"📄 Matching {file_extension} files:", "[yellow]None[/yellow]"
+            )
+
         return preview
 
     def browse_location(current_path):
@@ -1169,40 +1218,48 @@ def list_items(root=".", select_type="file", file_extension=".csv", file_keyword
         while True:
             # Initial check for empty directory
             has_folders, has_files, _ = check_folder_contents(current_path)
-            
+
             if not has_folders and not has_files:
                 message = [
                     "[red]This directory is empty or contains no relevant items![/red]\n",
-                    "[yellow]Requirements:[/yellow]"
+                    "[yellow]Requirements:[/yellow]",
                 ]
-                
+
                 if select_type == "folder":
                     message.append("- Accessible subfolders")
                 else:
                     message.append(f"- Files with {file_extension} extension")
                     if file_keywords:
-                        message.append(f"- Files containing keywords: {', '.join(file_keywords)}")
-                
-                console.print(Panel("\n".join(message), title="Empty Directory", border_style="red"))
-                
+                        message.append(
+                            f"- Files containing keywords: {', '.join(file_keywords)}"
+                        )
+
+                console.print(
+                    Panel(
+                        "\n".join(message), title="Empty Directory", border_style="red"
+                    )
+                )
+
                 if current_path != root:
                     return "back"
                 return None
 
             # Get items in current location
             items = []
-            
+
             # Get folders
             for item in os.scandir(current_path):
                 if item.is_dir():
                     items.append(get_item_info(item.path))
-            
+
             # Get files if we're selecting files
             if select_type == "file":
                 for item in os.scandir(current_path):
-                    if (item.is_file() and 
-                        item.name.lower().endswith(file_extension) and 
-                        matches_keywords(item.name)):
+                    if (
+                        item.is_file()
+                        and item.name.lower().endswith(file_extension)
+                        and matches_keywords(item.name)
+                    ):
                         items.append(get_item_info(item.path))
 
             # Sort items: folders first (alphabetically), then files (alphabetically)
@@ -1212,7 +1269,9 @@ def list_items(root=".", select_type="file", file_extension=".csv", file_keyword
             total_pages = math.ceil(len(items) / per_page)
 
             while True:
-                display_items_table(items, current_page, total_pages, show_files=(select_type == "file"))
+                display_items_table(
+                    items, current_page, total_pages, show_files=(select_type == "file")
+                )
 
                 nav_options = []
                 if current_page > 0:
@@ -1221,10 +1280,16 @@ def list_items(root=".", select_type="file", file_extension=".csv", file_keyword
                     nav_options.append("[cyan]'n'[/cyan] Next")
                 if current_path != root:
                     nav_options.append("[cyan]'b'[/cyan] Back")
-                nav_options.extend(["[cyan]'q'[/cyan] Quit", "or enter number to select"])
+                nav_options.extend(
+                    ["[cyan]'q'[/cyan] Quit", "or enter number to select"]
+                )
 
                 console.print(
-                    Panel(" | ".join(nav_options), title="Navigation", border_style="green")
+                    Panel(
+                        " | ".join(nav_options),
+                        title="Navigation",
+                        border_style="green",
+                    )
                 )
 
                 choice = console.input("\nYour choice: ").lower().strip()
@@ -1244,12 +1309,12 @@ def list_items(root=".", select_type="file", file_extension=".csv", file_keyword
                     idx = int(choice) - 1
                     if 0 <= idx < len(items):
                         selected_item = items[idx]
-                        
+
                         if selected_item["is_dir"]:
                             # Show folder preview before entering
                             console.print("\nFolder Preview:")
                             console.print(display_folder_preview(selected_item["path"]))
-                            
+
                             if select_type == "folder":
                                 console.print(
                                     Panel(
@@ -1263,8 +1328,12 @@ def list_items(root=".", select_type="file", file_extension=".csv", file_keyword
                                 return selected_item["path"]
                             else:
                                 # Check if folder has any matching files before entering
-                                has_folders, has_files, total_files = check_folder_contents(selected_item["path"], recursive=True)
-                                
+                                has_folders, has_files, total_files = (
+                                    check_folder_contents(
+                                        selected_item["path"], recursive=True
+                                    )
+                                )
+
                                 if not has_files:
                                     console.print(
                                         Panel(
@@ -1274,7 +1343,10 @@ def list_items(root=".", select_type="file", file_extension=".csv", file_keyword
                                             border_style="yellow",
                                         )
                                     )
-                                    if console.input("Enter folder? (y/n): ").lower() != 'y':
+                                    if (
+                                        console.input("Enter folder? (y/n): ").lower()
+                                        != "y"
+                                    ):
                                         continue
 
                                 # Navigate into the folder
